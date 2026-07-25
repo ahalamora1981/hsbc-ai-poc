@@ -1,0 +1,123 @@
+[
+  {
+    "id": "UC001",
+    "name": "FPS Inward Direct Debit Notification (Successful) - Non HKD / RMB",
+    "nameZh": "FPS入賬直接扣款通知（成功）- 非HKD/RMB",
+    "description": "CTA - Payment related PN (Push&SMS&Email)",
+    "channels": ["EMAIL", "SMS", "PUSH"],
+    "values": {
+      "group_member": "HASE",
+      "country_code": "INHK",
+      "line_of_business": "WPB",
+      "service_line": "Servicing",
+      "delivery_mode": "REALTIME",
+      "delivery_schedule": "7x24",
+      "high_risk_flag": "No",
+      "is_dual_channel": "No",
+      "bounce_back": "Yes",
+      "push_bounce_back_period": 15,
+      "sms_bounce_back_period": 720,
+      "email_bounce_back_period": 720
+    }
+  },
+  {
+    "id": "UC002",
+    "name": "FPS Inward Direct Debit Notification (Successful) - HKD / RMB",
+    "nameZh": "FPS入賬直接扣款通知（成功）- HKD/RMB",
+    "description": "CTA - Payment related PN (Push&SMS&Email)",
+    "channels": ["EMAIL", "SMS", "PUSH"],
+    "values": {
+      "group_member": "HASE",
+      "country_code": "INHK",
+      "line_of_business": "WPB",
+      "service_line": "Servicing",
+      "delivery_mode": "REALTIME",
+      "delivery_schedule": "7x24",
+      "high_risk_flag": "No",
+      "is_dual_channel": "No",
+      "bounce_back": "Yes",
+      "push_bounce_back_period": 15,
+      "sms_bounce_back_period": 720,
+      "email_bounce_back_period": 720
+    }
+  },
+  {
+    "id": "UC003",
+    "name": "CNP on low risk txn WPB No Mer",
+    "nameZh": "CNP低風險交易WPB無商戶",
+    "description": "CTA - CNP Transaction PN",
+    "channels": ["EMAIL", "PUSH", "SMS"],
+    "values": {
+      "group_member": "HASE",
+      "country_code": "INHK",
+      "line_of_business": "WPB",
+      "service_line": "Marketing",
+      "delivery_mode": "REALTIME",
+      "delivery_schedule": "7x24",
+      "high_risk_flag": "No",
+      "is_dual_channel": "No",
+      "bounce_back": "No"
+    }
+  },
+  {
+    "id": "UC004",
+    "name": "Mobile Cash Withdrawal",
+    "nameZh": "手機現金提款",
+    "description": "CTA - ATM Withdrawal PN",
+    "channels": ["EMAIL", "PUSH", "SMS"],
+    "values": {
+      "group_member": "HASE",
+      "country_code": "INHK",
+      "line_of_business": "WPB",
+      "service_line": "Servicing",
+      "delivery_mode": "REALTIME",
+      "delivery_schedule": "7x24",
+      "high_risk_flag": "Yes",
+      "is_dual_channel": "Yes",
+      "bounce_back": "Yes",
+      "push_bounce_back_period": 15,
+      "sms_bounce_back_period": 30,
+      "email_bounce_back_period": 60
+    }
+  },
+  {
+    "id": "UC005",
+    "name": "FPS Outward Payment Notification",
+    "nameZh": "FPS付款通知",
+    "description": "CTA - Payment related PN (Push&Email)",
+    "channels": ["EMAIL", "PUSH"],
+    "values": {
+      "group_member": "HASE",
+      "country_code": "INHK",
+      "line_of_business": "WPB",
+      "service_line": "Servicing",
+      "delivery_mode": "REALTIME",
+      "delivery_schedule": "7x24",
+      "high_risk_flag": "No",
+      "is_dual_channel": "No",
+      "bounce_back": "Yes",
+      "push_bounce_back_period": 15,
+      "email_bounce_back_period": 720
+    }
+  },
+  {
+    "id": "UC006",
+    "name": "eStatement Notification",
+    "nameZh": "電子月結單通知",
+    "description": "CTA - eStatement PN (Email&Letter)",
+    "channels": ["EMAIL", "LETTER"],
+    "values": {
+      "group_member": "HASE",
+      "country_code": "INHK",
+      "line_of_business": "WPB",
+      "service_line": "Servicing",
+      "delivery_mode": "BATCH",
+      "delivery_schedule": "Monthly",
+      "high_risk_flag": "No",
+      "is_dual_channel": "No",
+      "bounce_back": "No",
+      "letter_bounce_back_success_flag": "Yes",
+      "letter_bounce_back_period": 1440
+    }
+  }
+]

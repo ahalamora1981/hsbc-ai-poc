@@ -1,0 +1,57 @@
+[
+  {
+    "department": "Department 3",
+    "lineOfBusiness": "WPB",
+    "stats": {
+      "service_line": "Servicing",
+      "delivery_mode": "REALTIME",
+      "delivery_schedule": "7x24",
+      "high_risk_flag": "No",
+      "is_dual_channel": "No",
+      "bounce_back": "Yes",
+      "push_bounce_back_period": 15,
+      "sms_bounce_back_period": 720,
+      "email_bounce_back_period": 720,
+      "letter_bounce_back_period": 1440,
+      "bounce_back_next_channel": "No",
+      "unknown_bounce_back_status": "No",
+      "auto_bounce_back_flag": "No"
+    }
+  },
+  {
+    "department": "Department 3",
+    "lineOfBusiness": "RB",
+    "stats": {
+      "service_line": "Marketing",
+      "delivery_mode": "BATCH",
+      "delivery_schedule": "Daily",
+      "high_risk_flag": "No",
+      "is_dual_channel": "No",
+      "bounce_back": "No",
+      "push_bounce_back_period": 30,
+      "sms_bounce_back_period": 60,
+      "email_bounce_back_period": 120,
+      "bounce_back_next_channel": "No",
+      "unknown_bounce_back_status": "No",
+      "auto_bounce_back_flag": "No"
+    }
+  },
+  {
+    "department": "Department 5",
+    "lineOfBusiness": "WPB",
+    "stats": {
+      "service_line": "Servicing",
+      "delivery_mode": "REALTIME",
+      "delivery_schedule": "7x24",
+      "high_risk_flag": "Yes",
+      "is_dual_channel": "Yes",
+      "bounce_back": "Yes",
+      "push_bounce_back_period": 10,
+      "sms_bounce_back_period": 15,
+      "email_bounce_back_period": 30,
+      "bounce_back_next_channel": "Yes",
+      "unknown_bounce_back_status": "Yes",
+      "auto_bounce_back_flag": "Yes"
+    }
+  }
+]

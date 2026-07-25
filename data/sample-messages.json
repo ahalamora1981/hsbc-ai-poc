@@ -1,0 +1,9 @@
+{
+  "samples": [
+    "我需要為 FPS 轉賬成功通知設置 Push 和 SMS 通知，市場是 HK，Entity 是 HASE",
+    "要發送信用卡交易通知，high risk，需要 dual channel（SMS 和 EMAIL）",
+    "設置 eStatement 通知，用 Email 和 Letter，每月發送",
+    "ATM 提款通知，realtime push，需要 bounce back 到 SMS",
+    "Payment notification for FPS inward direct debit, non HKD/RMB, WPB line"
+  ]
+}
