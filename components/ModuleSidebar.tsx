@@ -38,7 +38,7 @@ export default function ModuleSidebar({ modules, currentModule, onModuleClick, f
   };
 
   return (
-    <div className="w-[240px] bg-white border-r border-gray-200 p-4 flex-shrink-0 overflow-hidden">
+    <div className="w-[280px] bg-white border-r border-gray-200 p-4 flex-shrink-0 overflow-hidden">
       <h2 className="text-xs font-semibold text-gray-600 mb-4 uppercase tracking-wide">MODULES</h2>
       
       <div className="space-y-1">
@@ -69,7 +69,7 @@ export default function ModuleSidebar({ modules, currentModule, onModuleClick, f
         ))}
       </div>
 
-      <div className="mt-6 pt-4 border-t border-gray-200">
+      <div className="mt-6 pt-4 px-2 border-t border-gray-200">
         <div className="text-xs text-gray-500 space-y-2">
           {/* Required */}
           <div>
