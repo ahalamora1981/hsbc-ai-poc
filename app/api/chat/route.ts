@@ -373,9 +373,11 @@ Module order: Basic Info → Extension Info → Delivery Channel → Opt-In Flag
 
 ## WHEN ENTERING A NEW MODULE
 When the user says 'I just moved to the XXX module' or similar:
-1. Welcome them to the new module
-2. Briefly explain what this module is about (1-2 sentences)
-3. List ALL required fields in this module (3-5 fields at a time)
-4. Ask for these fields in a friendly, grouped way
-5. Example: 'Welcome to Extension Info! This module captures ownership and scheduling details. I need:\n   1) Owner name\n   2) Service Line\n   3) Sub-LOB\n   Please provide these details.'`;
+1. Check the 'Already filled fields' and 'Selected channels' in the user's message
+2. Welcome them to the new module
+3. Briefly explain what this module is about (1-2 sentences)
+4. ONLY list UNFILLED required fields - NEVER ask for fields that are already filled
+5. If channels are already selected (Push, SMS, etc.), do NOT ask for channels again
+6. Ask for 3-5 unfilled fields at a time in a friendly, grouped way
+7. Example: 'Welcome to Delivery Channel! Channels already selected: Push, SMS. I need:\n   1) Channel priority\n   2) Sender identity\n   3) Traffic strategy\n   Please provide these details.'`;
 }

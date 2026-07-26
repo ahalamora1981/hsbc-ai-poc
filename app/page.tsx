@@ -271,9 +271,37 @@ export default function Home() {
     // Call AI to get guidance for the new module
     setTimeout(async () => {
       try {
+        // Get already filled fields for context
+        const filledFieldsList = Object.entries(formState.values)
+          .filter(([_, v]) => v !== '' && v !== undefined)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(', ');
+        
+        const channelsList = formState.channels.length > 0 
+          ? formState.channels.join(', ') 
+          : 'None';
+        
         const guidancePrompt = userLang === 'zh'
-          ? `我剛進入 ${targetModule} 模組。請用中文引導我需要填寫哪些欄位。列出必要欄位並以友善的方式詢問。一次詢問 3-5 個欄位。`
-          : `I just moved to the ${targetModule} module. Please guide me on what fields I need to fill in this module. List the required fields and ask for them in a friendly way. Ask 3-5 fields at a time.`;
+          ? `我剛進入 ${targetModule} 模組。
+
+已填寫的欄位：${filledFieldsList || '無'}
+已選擇的渠道：${channelsList}
+
+請用中文引導我需要填寫哪些欄位。注意：
+1. 不要詢問已經填寫過的欄位
+2. 如果渠道已經選擇過，不要再次詢問
+3. 只詢問尚未填寫的必要欄位
+4. 一次詢問 3-5 個欄位`
+          : `I just moved to the ${targetModule} module.
+
+Already filled fields: ${filledFieldsList || 'None'}
+Selected channels: ${channelsList}
+
+Please guide me on what fields I need to fill. Note:
+1. Do NOT ask for fields that are already filled
+2. If channels are already selected, do NOT ask again
+3. Only ask for unfilled required fields
+4. Ask 3-5 fields at a time`;
         
         const response = await fetch('/api/chat', {
           method: 'POST',
