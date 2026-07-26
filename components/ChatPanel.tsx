@@ -3,7 +3,7 @@
 import { useState, RefObject } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ChatMessage } from '@/types';
+import { ChatMessage, ModuleName } from '@/types';
 import sampleMessages from '@/data/sample-messages.json';
 
 interface ChatPanelProps {
@@ -11,10 +11,22 @@ interface ChatPanelProps {
   isLoading: boolean;
   onSendMessage: (content: string) => void;
   onUseSample: () => void;
+  onAdvanceModule: () => void;
+  showNextModule: boolean;
+  nextModuleName: ModuleName | null;
   messagesEndRef: RefObject<HTMLDivElement | null>;
 }
 
-export default function ChatPanel({ messages, isLoading, onSendMessage, onUseSample, messagesEndRef }: ChatPanelProps) {
+export default function ChatPanel({ 
+  messages, 
+  isLoading, 
+  onSendMessage, 
+  onUseSample, 
+  onAdvanceModule,
+  showNextModule,
+  nextModuleName,
+  messagesEndRef 
+}: ChatPanelProps) {
   const [input, setInput] = useState('');
   const [showSamples, setShowSamples] = useState(false);
 
@@ -104,6 +116,21 @@ export default function ChatPanel({ messages, isLoading, onSendMessage, onUseSam
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3">
         {messages.map(renderMessage)}
+        
+        {/* Next Module Button - appears when all required fields are filled */}
+        {showNextModule && nextModuleName && !isLoading && (
+          <div className="flex justify-center my-3">
+            <button
+              onClick={onAdvanceModule}
+              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium text-sm shadow-md hover:shadow-lg transition-all"
+            >
+              Continue to {nextModuleName}
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        )}
         
         {/* Loading indicator */}
         {isLoading && (

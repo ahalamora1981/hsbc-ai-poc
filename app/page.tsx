@@ -288,9 +288,7 @@ export default function Home() {
     }));
   }, []);
 
-  const handleManualAdvanceModule = useCallback(() => {
-    handleAdvanceModule('Moving to next module');
-  }, [handleAdvanceModule]);
+
 
   const handleUseSample = useCallback(() => {
     const sampleMessages = [
@@ -366,7 +364,6 @@ export default function Home() {
             onSelectReference={handleSelectReference}
             onStartFresh={handleStartFresh}
             onViewReferences={() => setShowReferences(true)}
-            onAdvanceModule={handleManualAdvanceModule}
             scrollToModule={scrollToModule}
             onScrollComplete={() => setScrollToModule(null)}
           />
@@ -379,6 +376,20 @@ export default function Home() {
         isLoading={isLoading}
         onSendMessage={handleSendMessage}
         onUseSample={handleUseSample}
+        onAdvanceModule={() => handleAdvanceModule('Moving to next module')}
+        showNextModule={(() => {
+          const currentIndex = moduleOrder.indexOf(formState.currentModule);
+          const nextModule = moduleOrder[currentIndex + 1];
+          if (!nextModule) return false;
+          const requiredFields = getRequiredFields(formState.currentModule);
+          return requiredFields.every(f => 
+            formState.values[f.name] && formState.statuses[f.name] !== 'empty'
+          );
+        })()}
+        nextModuleName={(() => {
+          const currentIndex = moduleOrder.indexOf(formState.currentModule);
+          return moduleOrder[currentIndex + 1] || null;
+        })()}
         messagesEndRef={messagesEndRef}
       />
     </div>

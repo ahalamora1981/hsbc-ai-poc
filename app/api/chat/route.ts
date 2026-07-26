@@ -292,7 +292,11 @@ ${missingFields}
    - "Push 和 SMS" → channel: PUSH, SMS
    - Source system can often be inferred from context (e.g., "FPS" → source_system: "FPS")
 7. For reference use cases, pre-fill matching fields automatically
-8. Ask for missing fields in a logical order, grouping related questions
+8. IMPORTANT: Ask for MULTIPLE missing fields in ONE message (3-5 fields at a time). Do NOT ask one field at a time.
+   - Group related fields together (e.g., all business hierarchy fields: LOB, Service Line, Sub-LOB)
+   - After user answers, batch_update all values and ask for the next group of fields
+   - This minimizes conversation rounds and improves user experience
+   - Example: 'I need: 1) Line of Business, 2) Service Line, 3) Sub-LOB - Please provide these details'
 9. IMPORTANT: When setting a field value, always use source='filled' (not 'empty')
 10. NEVER output raw technical data, JSON, or internal field names to the user. Use friendly, natural language.
 11. CRITICAL: NEVER include tool call syntax, function call syntax, or any XML-like tags in your response content. Use the proper tool_calls format ONLY.

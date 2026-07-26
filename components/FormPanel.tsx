@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { CampaignState, ReferenceUseCase, FieldStatus, FieldDefinition, ModuleName, Module } from '@/types';
-import { isFieldRelevant, moduleOrder, getRequiredFields } from '@/data/field-definitions';
+import { isFieldRelevant } from '@/data/field-definitions';
 import ReferenceCards from './ReferenceCards';
 import FieldRow from './FieldRow';
 import ChannelMatrix from './ChannelMatrix';
@@ -16,7 +16,6 @@ interface FormPanelProps {
   onSelectReference: (useCaseId: string) => void;
   onStartFresh: () => void;
   onViewReferences: () => void;
-  onAdvanceModule: () => void;
   scrollToModule?: ModuleName | null;
   onScrollComplete?: () => void;
 }
@@ -45,7 +44,6 @@ export default function FormPanel({
   onSelectReference,
   onStartFresh,
   onViewReferences,
-  onAdvanceModule,
   scrollToModule,
   onScrollComplete,
 }: FormPanelProps) {
@@ -224,37 +222,7 @@ export default function FormPanel({
                     ))}
                 </div>
 
-                {/* Next Module Button - Only show for current module */}
-                {isCurrentModule && (() => {
-                  const currentIndex = moduleOrder.indexOf(formState.currentModule);
-                  const nextModule = moduleOrder[currentIndex + 1];
-                  if (!nextModule) return null;
-                  
-                  // Check if all required fields in current module are filled
-                  const requiredFields = getRequiredFields(formState.currentModule);
-                  const allRequiredFilled = requiredFields.every(f => 
-                    formState.values[f.name] && formState.statuses[f.name] !== 'empty'
-                  );
-                  
-                  if (!allRequiredFilled) return null;
-                  
-                  return (
-                    <div className="mt-4 flex justify-end">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAdvanceModule();
-                        }}
-                        className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium"
-                      >
-                        Next: {nextModule}
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                    </div>
-                  );
-                })()}
+
               </div>
             )}
           </div>
