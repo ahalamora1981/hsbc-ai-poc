@@ -221,11 +221,27 @@ export default function Home() {
     );
   }, []);
 
+  // Detect user's language from recent messages
+  const detectUserLanguage = useCallback(() => {
+    const recentUserMessages = messages
+      .filter(m => m.role === 'user')
+      .slice(-3)
+      .map(m => m.content);
+    
+    const hasChinese = recentUserMessages.some(content => 
+      /[\u4e00-\u9fff]/.test(content)
+    );
+    
+    return hasChinese ? 'zh' : 'en';
+  }, [messages]);
+
   const handleAdvanceModule = useCallback((message: string, currentModule?: string, nextModule?: string, module?: string) => {
     const targetModuleName = nextModule || module || moduleOrder[moduleOrder.indexOf(formState.currentModule) + 1];
     const targetModule = targetModuleName as ModuleName;
     
     if (!targetModule || !moduleOrder.includes(targetModule)) return;
+
+    const userLang = detectUserLanguage();
 
     // Update form state
     setFormState(prev => ({
@@ -233,11 +249,15 @@ export default function Home() {
       currentModule: targetModule,
     }));
 
-    // Show transition message with specific module name
+    // Show transition message with specific module name in user's language
+    const transitionMsg = userLang === 'zh' 
+      ? `正在進入 ${targetModule} 模組`
+      : `Moving to ${targetModule} module`;
+    
     setMessages(prev => [...prev, {
       id: generateMessageId(),
       role: 'assistant',
-      content: `Moving to ${targetModule} module`,
+      content: transitionMsg,
       timestamp: new Date(),
       type: 'text',
     }, {
@@ -251,6 +271,10 @@ export default function Home() {
     // Call AI to get guidance for the new module
     setTimeout(async () => {
       try {
+        const guidancePrompt = userLang === 'zh'
+          ? `我剛進入 ${targetModule} 模組。請用中文引導我需要填寫哪些欄位。列出必要欄位並以友善的方式詢問。一次詢問 3-5 個欄位。`
+          : `I just moved to the ${targetModule} module. Please guide me on what fields I need to fill in this module. List the required fields and ask for them in a friendly way. Ask 3-5 fields at a time.`;
+        
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -258,12 +282,12 @@ export default function Home() {
             messages: [{
               id: generateMessageId(),
               role: 'user',
-              content: `I just moved to the ${targetModule} module. Please guide me on what fields I need to fill in this module. List the required fields and ask for them in a friendly way.`,
+              content: guidancePrompt,
               timestamp: new Date(),
               type: 'text',
             }],
             formState: { ...formState, currentModule: targetModule },
-            userMessage: `I just moved to the ${targetModule} module. Please guide me on what fields I need to fill in this module.`,
+            userMessage: guidancePrompt,
           }),
         });
 
@@ -282,7 +306,7 @@ export default function Home() {
         setMessages(prev => prev.filter(m => m.type !== 'processing'));
       }
     }, 500);
-  }, [formState, generateMessageId]);
+  }, [formState, generateMessageId, detectUserLanguage]);
 
   const handleSelectReference = useCallback((useCaseId: string) => {
     const useCase = mockUseCases.find(uc => uc.id === useCaseId);
