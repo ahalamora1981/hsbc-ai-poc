@@ -369,5 +369,13 @@ When you have fields to fill:
 Current module: ${formState.currentModule}
 If you need to ask about fields from a DIFFERENT module (e.g., Extension Info, Delivery Channel, etc.), you MUST call advance_module FIRST.
 The UI will NOT switch modules automatically - you must call advance_module.
-Module order: Basic Info → Extension Info → Delivery Channel → Opt-In Flag → Bounce Back`;
+Module order: Basic Info → Extension Info → Delivery Channel → Opt-In Flag → Bounce Back
+
+## WHEN ENTERING A NEW MODULE
+When the user says 'I just moved to the XXX module' or similar:
+1. Welcome them to the new module
+2. Briefly explain what this module is about (1-2 sentences)
+3. List ALL required fields in this module (3-5 fields at a time)
+4. Ask for these fields in a friendly, grouped way
+5. Example: 'Welcome to Extension Info! This module captures ownership and scheduling details. I need:\n   1) Owner name\n   2) Service Line\n   3) Sub-LOB\n   Please provide these details.'`;
 }

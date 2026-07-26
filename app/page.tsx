@@ -222,27 +222,67 @@ export default function Home() {
   }, []);
 
   const handleAdvanceModule = useCallback((message: string, currentModule?: string, nextModule?: string, module?: string) => {
-    setFormState(prev => {
-      // Use provided nextModule, module, or calculate from current
-      const targetModuleName = nextModule || module || moduleOrder[moduleOrder.indexOf(prev.currentModule) + 1];
-      const targetModule = targetModuleName as ModuleName;
-      
-      if (!targetModule || !moduleOrder.includes(targetModule)) return prev;
+    const targetModuleName = nextModule || module || moduleOrder[moduleOrder.indexOf(formState.currentModule) + 1];
+    const targetModule = targetModuleName as ModuleName;
+    
+    if (!targetModule || !moduleOrder.includes(targetModule)) return;
 
-      return {
-        ...prev,
-        currentModule: targetModule,
-      };
-    });
+    // Update form state
+    setFormState(prev => ({
+      ...prev,
+      currentModule: targetModule,
+    }));
 
+    // Show transition message with specific module name
     setMessages(prev => [...prev, {
       id: generateMessageId(),
       role: 'assistant',
-      content: message,
+      content: `Moving to ${targetModule} module`,
       timestamp: new Date(),
       type: 'text',
+    }, {
+      id: generateMessageId(),
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      type: 'processing',
     }]);
-  }, [generateMessageId]);
+
+    // Call AI to get guidance for the new module
+    setTimeout(async () => {
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [{
+              id: generateMessageId(),
+              role: 'user',
+              content: `I just moved to the ${targetModule} module. Please guide me on what fields I need to fill in this module. List the required fields and ask for them in a friendly way.`,
+              timestamp: new Date(),
+              type: 'text',
+            }],
+            formState: { ...formState, currentModule: targetModule },
+            userMessage: `I just moved to the ${targetModule} module. Please guide me on what fields I need to fill in this module.`,
+          }),
+        });
+
+        const data = await response.json();
+        
+        // Remove processing message and add AI guidance
+        setMessages(prev => {
+          const withoutProcessing = prev.filter(m => m.type !== 'processing');
+          return [...withoutProcessing, {
+            ...data.message,
+            id: generateMessageId(),
+          }];
+        });
+      } catch (error) {
+        console.error('Failed to get module guidance:', error);
+        setMessages(prev => prev.filter(m => m.type !== 'processing'));
+      }
+    }, 500);
+  }, [formState, generateMessageId]);
 
   const handleSelectReference = useCallback((useCaseId: string) => {
     const useCase = mockUseCases.find(uc => uc.id === useCaseId);
@@ -376,7 +416,11 @@ export default function Home() {
         isLoading={isLoading}
         onSendMessage={handleSendMessage}
         onUseSample={handleUseSample}
-        onAdvanceModule={() => handleAdvanceModule('Moving to next module')}
+        onAdvanceModule={() => {
+          const currentIndex = moduleOrder.indexOf(formState.currentModule);
+          const nextModule = moduleOrder[currentIndex + 1];
+          handleAdvanceModule('', undefined, nextModule);
+        }}
         showNextModule={(() => {
           const currentIndex = moduleOrder.indexOf(formState.currentModule);
           const nextModule = moduleOrder[currentIndex + 1];
