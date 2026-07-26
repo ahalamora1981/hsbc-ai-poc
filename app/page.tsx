@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { CampaignState, ChatMessage, ModuleName, FieldStatus, ReferenceUseCase, Module, FieldDefinition } from '@/types';
-import { fieldDefinitions, moduleOrder, getFieldsByModule, getRequiredFields, isFieldRelevant } from '@/data/field-definitions';
+import { fieldDefinitions, moduleOrder, getFieldsByModule, getRequiredFields, getActionableFields, isFieldRelevant } from '@/data/field-definitions';
 import mockUseCases from '@/data/mock-use-cases.json';
 import historicalStats from '@/data/historical-stats.json';
 import ChatPanel from '@/components/ChatPanel';
@@ -477,8 +477,9 @@ Please guide me on what fields I need to fill. Note:
           const currentIndex = moduleOrder.indexOf(formState.currentModule);
           const nextModule = moduleOrder[currentIndex + 1];
           if (!nextModule) return false;
-          const requiredFields = getRequiredFields(formState.currentModule);
-          return requiredFields.every(f => 
+          // Use getActionableFields to check both Required and relevant Conditional fields
+          const actionableFields = getActionableFields(formState.currentModule, formState.channels);
+          return actionableFields.every(f => 
             formState.values[f.name] && formState.statuses[f.name] !== 'empty'
           );
         })()}

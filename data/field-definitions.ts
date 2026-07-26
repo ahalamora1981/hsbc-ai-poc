@@ -78,6 +78,24 @@ export function getOptionalFields(module: ModuleName): FieldDefinition[] {
   return getFieldsByModule(module).filter(f => f.required === 'Optional');
 }
 
+// Get fields that need to be filled before advancing to next module
+// Includes Required fields + Conditional fields that are relevant to selected channels
+export function getActionableFields(module: ModuleName, channels: string[]): FieldDefinition[] {
+  const moduleFields = getFieldsByModule(module);
+  
+  return moduleFields.filter(f => {
+    // Always include Required fields
+    if (f.required === 'Required') return true;
+    
+    // Include Conditional fields if their dependsOn matches selected channels
+    if (f.required === 'Conditional' && f.dependsOn) {
+      return channels.some(ch => f.dependsOn?.includes(ch));
+    }
+    
+    return false;
+  });
+}
+
 export function getFieldDependencies(fieldName: string): string[] {
   const field = fieldDefinitions.find(f => f.name === fieldName);
   if (!field?.dependsOn) return [];

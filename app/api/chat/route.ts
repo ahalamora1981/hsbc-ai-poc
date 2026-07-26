@@ -262,10 +262,18 @@ function buildSystemPrompt(formState: CampaignState): string {
   const channels = formState.channels.join(', ') || 'None selected';
 
   const currentModule = formState.modules.find(m => m.name === formState.currentModule);
-  const missingFields = currentModule?.fields
-    .filter(f => f.required === 'Required')
+  // Get actionable fields: Required + Conditional fields relevant to selected channels
+  const actionableFields = currentModule?.fields.filter(f => {
+    if (f.required === 'Required') return true;
+    if (f.required === 'Conditional' && f.dependsOn) {
+      return formState.channels.some(ch => f.dependsOn?.includes(ch));
+    }
+    return false;
+  }) || [];
+  
+  const missingFields = actionableFields
     .filter(f => !formState.values[f.name])
-    .map(f => `${f.displayName} (${f.name}) - ${f.businessDescription}`)
+    .map(f => `${f.displayName} (${f.name}) - ${f.businessDescription}${f.dependsOn ? ' [depends on: ' + f.dependsOn + ']' : ''}`)
     .join('\n') || 'None';
 
   return `You are an AI assistant for Hang Seng Bank's Campaign Configuration system. Help users fill campaign fields efficiently.
@@ -276,7 +284,7 @@ function buildSystemPrompt(formState: CampaignState): string {
 - Filled fields:
 ${filledFields}
 
-## Missing Required Fields in Current Module
+## Missing Actionable Fields in Current Module (Required + Channel-Conditional)
 ${missingFields}
 
 ## Rules
