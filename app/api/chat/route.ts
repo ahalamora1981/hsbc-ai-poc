@@ -158,6 +158,16 @@ export async function POST(request: NextRequest) {
     const content = message.content || '';
     const customToolCall = parseCustomToolCalls(content);
     
+    // Clean content - remove any tool call syntax that might have leaked
+    let cleanContent = content
+      .replace(/<｜｜DSML｜｜tool_calls>[\s\S]*<｜｜DSML｜｜\/tool_calls>/g, '')
+      .replace(/<｜｜DSML｜｜tool_calls>[\s\S]*$/g, '')  // Handle incomplete tool calls
+      .replace(/<｜｜DSML｜｜invoke[^>]*>/g, '')
+      .replace(/<｜｜DSML｜｜parameter[^>]*>/g, '')
+      .replace(/<｜｜DSML｜｜\/[^>]*>/g, '')
+      .replace(/\{\s*\"name\".*\}/g, '')  // Remove JSON-like tool calls
+      .trim();
+    
     if (customToolCall) {
       // Remove the tool call syntax from the content
       const cleanContent = content.replace(/<｜｜DSML｜｜tool_calls>[\s\S]*<｜｜DSML｜｜\/tool_calls>/, '').trim();
@@ -194,7 +204,7 @@ export async function POST(request: NextRequest) {
       message: {
         id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         role: 'assistant',
-        content: content,
+        content: cleanContent || content,
         timestamp: new Date(),
         type: 'text',
       },
@@ -285,7 +295,11 @@ ${missingFields}
 8. Ask for missing fields in a logical order, grouping related questions
 9. IMPORTANT: When setting a field value, always use source='filled' (not 'empty')
 10. NEVER output raw technical data, JSON, or internal field names to the user. Use friendly, natural language.
-11. CRITICAL MODULE SWITCHING RULE:
+11. CRITICAL: NEVER include tool call syntax, function call syntax, or any XML-like tags in your response content. Use the proper tool_calls format ONLY.
+    - DO NOT output: <tool_call>, <｜｜DSML｜｜tool_calls>, {"name":...}, etc.
+    - These are internal implementation details that the user should NEVER see.
+    - Your response should ONLY contain natural language text.
+12. CRITICAL MODULE SWITCHING RULE:
     - Current module is shown in the state above
     - The module order is: Basic Info → Extension Info → Delivery Channel → Opt-In Flag → Bounce Back
     - BEFORE asking about fields from a DIFFERENT module, you MUST call advance_module

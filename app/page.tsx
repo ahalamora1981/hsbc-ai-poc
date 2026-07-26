@@ -124,6 +124,15 @@ export default function Home() {
       const assistantMessage: ChatMessage = {
         ...data.message,
         id: generateMessageId(),
+        // Clean any tool call syntax that might have leaked
+        content: data.message.content
+          .replace(/<｜｜DSML｜｜tool_calls>[\s\S]*<｜｜DSML｜｜\/tool_calls>/g, '')
+          .replace(/<｜｜DSML｜｜tool_calls>[\s\S]*$/g, '')
+          .replace(/<｜｜DSML｜｜invoke[^>]*>/g, '')
+          .replace(/<｜｜DSML｜｜parameter[^>]*>/g, '')
+          .replace(/<｜｜DSML｜｜\/[^>]*>/g, '')
+          .replace(/\{\s*\"name\".*\}/g, '')
+          .trim(),
       };
       setMessages(prev => [...prev, assistantMessage]);
 
