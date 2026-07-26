@@ -76,6 +76,18 @@ export const campaignFunctions = [
           type: 'string',
           description: 'Message to show the user about advancing',
         },
+        current_module: {
+          type: 'string',
+          description: 'The current module name (e.g., Basic Info)',
+        },
+        next_module: {
+          type: 'string',
+          description: 'The next module name (e.g., Extension Info)',
+        },
+        module: {
+          type: 'string',
+          description: 'The module to advance to (alternative to next_module)',
+        },
       },
       required: ['message'],
     },

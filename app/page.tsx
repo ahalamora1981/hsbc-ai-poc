@@ -14,9 +14,6 @@ const initialState: CampaignState = {
   modules: moduleOrder.map(name => ({
     name,
     fields: getFieldsByModule(name),
-    status: name === 'Basic Info' ? 'in-progress' : 'waiting',
-    missingCount: getRequiredFields(name).length,
-    pendingCount: 0,
   })),
   currentModule: 'Basic Info',
   channels: [],
@@ -30,7 +27,9 @@ export default function Home() {
   const [referenceUseCases, setReferenceUseCases] = useState<ReferenceUseCase[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showReferences, setShowReferences] = useState(true);
+  const [scrollToModule, setScrollToModule] = useState<ModuleName | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageCounter = useRef(0);
 
   // Initialize welcome message
   useEffect(() => {
@@ -50,33 +49,6 @@ export default function Home() {
     }]);
   }, []);
 
-  // Update module status when form state changes
-  useEffect(() => {
-    setFormState(prev => ({
-      ...prev,
-      modules: prev.modules.map(module => {
-        const requiredFields = getRequiredFields(module.name);
-        const filledRequired = requiredFields.filter(f => 
-          prev.values[f.name] !== undefined && prev.values[f.name] !== ''
-        );
-        const missingCount = requiredFields.length - filledRequired.length;
-        
-        let status: Module['status'] = 'waiting';
-        if (module.name === prev.currentModule) {
-          status = 'in-progress';
-        } else if (missingCount === 0 && prev.modules.findIndex(m => m.name === module.name) < prev.modules.findIndex(m => m.name === prev.currentModule)) {
-          status = 'complete';
-        }
-
-        return {
-          ...module,
-          status,
-          missingCount,
-        };
-      }),
-    }));
-  }, [formState.values, formState.currentModule]);
-
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
@@ -85,9 +57,14 @@ export default function Home() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
+  const generateMessageId = useCallback(() => {
+    messageCounter.current += 1;
+    return `msg-${Date.now()}-${messageCounter.current}`;
+  }, []);
+
   const handleSendMessage = useCallback(async (content: string) => {
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
+      id: generateMessageId(),
       role: 'user',
       content,
       timestamp: new Date(),
@@ -95,6 +72,35 @@ export default function Home() {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    
+    // Auto-detect channels from user message
+    const channelKeywords: Record<string, string[]> = {
+      'PUSH': ['push', '推播', '推送通知'],
+      'SMS': ['sms', '短訊', '短信'],
+      'EMAIL': ['email', '電郵', '郵件'],
+      'LETTER': ['letter', '信件', '信函'],
+    };
+    
+    const lowerContent = content.toLowerCase();
+    const detectedChannels: string[] = [];
+    
+    for (const [channel, keywords] of Object.entries(channelKeywords)) {
+      if (keywords.some(kw => lowerContent.includes(kw))) {
+        detectedChannels.push(channel);
+      }
+    }
+    
+    // Update channels if new ones detected
+    if (detectedChannels.length > 0) {
+      setFormState(prev => {
+        const newChannels = [...new Set([...prev.channels, ...detectedChannels])];
+        if (newChannels.length !== prev.channels.length) {
+          return { ...prev, channels: newChannels };
+        }
+        return prev;
+      });
+    }
+    
     setIsLoading(true);
 
     try {
@@ -117,7 +123,7 @@ export default function Home() {
       // Add assistant message
       const assistantMessage: ChatMessage = {
         ...data.message,
-        id: (Date.now() + 1).toString(),
+        id: generateMessageId(),
       };
       setMessages(prev => [...prev, assistantMessage]);
 
@@ -125,10 +131,15 @@ export default function Home() {
       if (data.functionCall) {
         handleFunctionCall(data.functionCall);
       }
+      
+      // Handle follow-up function call (from custom tool call format)
+      if (data.followUpFunctionCall) {
+        handleFunctionCall(data.followUpFunctionCall);
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
       setMessages(prev => [...prev, {
-        id: (Date.now() + 2).toString(),
+        id: generateMessageId(),
         role: 'assistant',
         content: '抱歉，處理您的請求時出現錯誤。請稍後重試。',
         timestamp: new Date(),
@@ -153,7 +164,7 @@ export default function Home() {
         handleSetMatchScore(args.use_case_id as string, args.score as number);
         break;
       case 'advance_module':
-        handleAdvanceModule(args.message as string);
+        handleAdvanceModule(args.message as string, args.current_module as string | undefined, args.next_module as string | undefined, args.module as string | undefined);
         break;
       case 'show_help':
         // Help is handled inline in chat
@@ -201,32 +212,28 @@ export default function Home() {
     );
   }, []);
 
-  const handleAdvanceModule = useCallback((message: string) => {
+  const handleAdvanceModule = useCallback((message: string, currentModule?: string, nextModule?: string, module?: string) => {
     setFormState(prev => {
-      const currentIndex = moduleOrder.indexOf(prev.currentModule);
-      const nextModule = moduleOrder[currentIndex + 1];
+      // Use provided nextModule, module, or calculate from current
+      const targetModuleName = nextModule || module || moduleOrder[moduleOrder.indexOf(prev.currentModule) + 1];
+      const targetModule = targetModuleName as ModuleName;
       
-      if (!nextModule) return prev;
+      if (!targetModule || !moduleOrder.includes(targetModule)) return prev;
 
       return {
         ...prev,
-        currentModule: nextModule,
-        modules: prev.modules.map(m => 
-          m.name === prev.currentModule ? { ...m, status: 'complete' } :
-          m.name === nextModule ? { ...m, status: 'in-progress' } :
-          m
-        ),
+        currentModule: targetModule,
       };
     });
 
     setMessages(prev => [...prev, {
-      id: Date.now().toString(),
+      id: generateMessageId(),
       role: 'assistant',
       content: message,
       timestamp: new Date(),
       type: 'text',
     }]);
-  }, []);
+  }, [generateMessageId]);
 
   const handleSelectReference = useCallback((useCaseId: string) => {
     const useCase = mockUseCases.find(uc => uc.id === useCaseId);
@@ -242,24 +249,24 @@ export default function Home() {
     handleBatchUpdate(updates);
 
     setMessages(prev => [...prev, {
-      id: Date.now().toString(),
+      id: generateMessageId(),
       role: 'assistant',
       content: `✅ 已套用參考 Use Case: ${useCase.name}\n\n已預填充以下欄位：\n${updates.map(u => `• ${u.field_name}: ${u.value}`).join('\n')}\n\n請確認或修改這些值，我會繼續引導您完成其他欄位。`,
       timestamp: new Date(),
       type: 'text',
     }]);
-  }, [handleBatchUpdate]);
+  }, [handleBatchUpdate, generateMessageId]);
 
   const handleStartFresh = useCallback(() => {
     setShowReferences(false);
     setMessages(prev => [...prev, {
-      id: Date.now().toString(),
+      id: generateMessageId(),
       role: 'assistant',
       content: `好的，我們從頭開始。\n\n請告訴我您的 campaign 需求，我會引導您逐步填寫所有必要欄位。\n\n首先，請選擇您需要的 delivery channels（SMS、EMAIL、PUSH、LETTER）：`,
       timestamp: new Date(),
       type: 'text',
     }]);
-  }, []);
+  }, [generateMessageId]);
 
   const handleFieldEdit = useCallback((fieldName: string, value: string) => {
     handleFieldUpdate(fieldName, value, 'user-input' as FieldStatus);
@@ -271,6 +278,10 @@ export default function Home() {
       statuses: { ...prev.statuses, [fieldName]: 'confirmed' },
     }));
   }, []);
+
+  const handleManualAdvanceModule = useCallback(() => {
+    handleAdvanceModule('Moving to next module');
+  }, [handleAdvanceModule]);
 
   const handleUseSample = useCallback(() => {
     const sampleMessages = [
@@ -286,7 +297,7 @@ export default function Home() {
   const handleFirstRequirement = useCallback(async (requirement: string) => {
     // Show processing message
     setMessages(prev => [...prev, {
-      id: Date.now().toString(),
+      id: generateMessageId(),
       role: 'assistant',
       content: '🔍 正在分析您的 requirement...\n• 提取業務信號\n• 搜索匹配的歷史 use case',
       timestamp: new Date(),
@@ -312,13 +323,13 @@ export default function Home() {
     ).join('\n\n');
 
     setMessages(prev => [...prev, {
-      id: Date.now().toString(),
+      id: generateMessageId(),
       role: 'assistant',
       content: `✅ 需求已理解！找到 ${matches.length} 個相關的歷史 Use Case：\n\n${matchText}\n\n請選擇一個作為參考，或點擊「開始新 Use Case」從頭開始。`,
       timestamp: new Date(),
       type: 'text',
     }]);
-  }, []);
+  }, [generateMessageId]);
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -332,6 +343,7 @@ export default function Home() {
             currentModule={formState.currentModule}
             onModuleClick={(module) => {
               setFormState(prev => ({ ...prev, currentModule: module }));
+              setScrollToModule(module);
             }}
             formState={formState}
           />
@@ -345,6 +357,9 @@ export default function Home() {
             onSelectReference={handleSelectReference}
             onStartFresh={handleStartFresh}
             onViewReferences={() => setShowReferences(true)}
+            onAdvanceModule={handleManualAdvanceModule}
+            scrollToModule={scrollToModule}
+            onScrollComplete={() => setScrollToModule(null)}
           />
         </div>
       </div>

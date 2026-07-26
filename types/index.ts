@@ -16,9 +16,6 @@ export type ModuleName = 'Basic Info' | 'Extension Info' | 'Delivery Channel' | 
 export interface Module {
   name: ModuleName;
   fields: FieldDefinition[];
-  status: 'waiting' | 'in-progress' | 'complete';
-  missingCount: number;
-  pendingCount: number;
 }
 
 // Campaign form state

@@ -9,6 +9,9 @@ A Next.js POC for an AI-assisted campaign creation system for Hang Seng Bank.
 - **Smart Field Extraction**: AI extracts fields from natural language descriptions
 - **Reference Use Cases**: Matches historical campaigns for reference
 - **Auto-fill with Statistics**: Pre-fills fields based on historical data
+- **Channel Detection**: Automatically detects channels (Push, SMS, Email, Letter) from user messages
+- **Dynamic Field Visibility**: Shows/hides fields based on channel selection and dependencies
+- **Scroll-to-Module**: Click sidebar module to scroll to it in the form
 
 ## Tech Stack
 
@@ -59,6 +62,17 @@ campaign-ai-poc/
     ├── functions.ts          # Function calling definitions
     └── prompts.ts            # System prompts
 ```
+
+## Key Features
+
+### Channel Detection
+The AI automatically detects channels mentioned in user messages (Push, SMS, Email, Letter) and activates relevant fields in other modules (Opt-In Flag, Bounce Back).
+
+### Dynamic Field Visibility
+Fields are shown/hidden based on channel selection and other field dependencies. The sidebar shows accurate missing counts that update as channels are selected.
+
+### Scroll-to-Module
+Clicking a module in the sidebar scrolls to that module in the form area and expands it automatically.
 
 ## License
 

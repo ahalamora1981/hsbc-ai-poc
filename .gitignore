@@ -29,6 +29,16 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Playwright CLI artifacts
+.playwright-cli/
+
+# Test artifacts
+tests/*.png
+tests/*.yml
+*.png
+*.yml
+!*.config.*
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

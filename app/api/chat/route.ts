@@ -87,10 +87,29 @@ export async function POST(request: NextRequest) {
       if ('choices' in continueResponse) {
         followUpContent = continueResponse.choices[0]?.message?.content || '';
       }
+      
+      // Check for custom tool calls in follow-up content
+      const followUpToolCall = parseCustomToolCalls(followUpContent);
+      if (followUpToolCall) {
+        // Clean the content
+        followUpContent = followUpContent.replace(/<｜｜DSML｜｜tool_calls>[\s\S]*<｜｜DSML｜｜\/tool_calls>/, '').trim();
+        // Return both the original function call and the follow-up one
+        return NextResponse.json({
+          message: {
+            id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            role: 'assistant',
+            content: followUpContent || message.content || '',
+            timestamp: new Date(),
+            type: 'text',
+          },
+          functionCall,
+          followUpFunctionCall: followUpToolCall,
+        });
+      }
 
       return NextResponse.json({
         message: {
-          id: Date.now().toString(),
+          id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           role: 'assistant',
           content: followUpContent || message.content || '',
           timestamp: new Date(),
@@ -125,7 +144,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         message: {
-          id: Date.now().toString(),
+          id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           role: 'assistant',
           content: followUpContent || message.content || '',
           timestamp: new Date(),
@@ -135,12 +154,47 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Regular text response
+    // Regular text response - but check for custom tool calls in content
+    const content = message.content || '';
+    const customToolCall = parseCustomToolCalls(content);
+    
+    if (customToolCall) {
+      // Remove the tool call syntax from the content
+      const cleanContent = content.replace(/<｜｜DSML｜｜tool_calls>[\s\S]*<｜｜DSML｜｜\/tool_calls>/, '').trim();
+      
+      // Build continuation messages
+      const continueMessages: LLMMessage[] = [
+        ...llmMessages,
+        { role: 'assistant' as const, content: cleanContent || 'Processing your request...' },
+        { role: 'user' as const, content: 'Continue. List what fields were filled and ask for remaining required fields.' }
+      ];
+      
+      const continueResponse = await chatCompletion(continueMessages, {
+        temperature: 0.7,
+      });
+      
+      let followUpContent = '';
+      if ('choices' in continueResponse) {
+        followUpContent = continueResponse.choices[0]?.message?.content || '';
+      }
+      
+      return NextResponse.json({
+        message: {
+          id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          role: 'assistant',
+          content: followUpContent || cleanContent || '',
+          timestamp: new Date(),
+          type: 'text',
+        },
+        functionCall: customToolCall,
+      });
+    }
+    
     return NextResponse.json({
       message: {
-        id: Date.now().toString(),
+        id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         role: 'assistant',
-        content: message.content || '',
+        content: content,
         timestamp: new Date(),
         type: 'text',
       },
@@ -152,6 +206,41 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function parseCustomToolCalls(content: string): { name: string; arguments: Record<string, unknown> } | null {
+  // Parse custom tool call format: <｜｜DSML｜｜tool_calls> <｜｜DSML｜｜invoke name="..."> <｜｜DSML｜｜parameter name="..." string="true">...</｜｜DSML｜｜parameter> </｜｜DSML｜｜invoke> </｜｜DSML｜｜tool_calls>
+  // Also handle incomplete format: <｜｜DSML｜｜tool_calls> <｜｜DSML｜｜invoke name="...">
+  
+  // Try complete format first
+  const toolCallMatch = content.match(/<｜｜DSML｜｜tool_calls>\s*<｜｜DSML｜｜invoke name="([^"]+)">([\s\S]*?)<｜｜DSML｜｜\/invoke>\s*<｜｜DSML｜｜\/tool_calls>/);
+  if (toolCallMatch) {
+    const functionName = toolCallMatch[1];
+    const paramsString = toolCallMatch[2];
+    
+    const args: Record<string, string> = {};
+    const paramRegex = /<｜｜DSML｜｜parameter name="([^"]+)" string="true">([^<]*)<｜｜DSML｜｜\/parameter>/g;
+    let match;
+    while ((match = paramRegex.exec(paramsString)) !== null) {
+      args[match[1]] = match[2];
+    }
+    
+    return {
+      name: functionName,
+      arguments: args as Record<string, unknown>,
+    };
+  }
+  
+  // Try incomplete format (just the function name)
+  const incompleteMatch = content.match(/<｜｜DSML｜｜tool_calls>\s*<｜｜DSML｜｜invoke name="([^"]+)">/);
+  if (incompleteMatch) {
+    return {
+      name: incompleteMatch[1],
+      arguments: {} as Record<string, unknown>,
+    };
+  }
+  
+  return null;
 }
 
 function buildSystemPrompt(formState: CampaignState): string {
