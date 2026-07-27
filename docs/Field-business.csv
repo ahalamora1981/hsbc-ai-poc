@@ -1,0 +1,68 @@
+﻿ID,Field Name,Display Name,Business Description,Module,Required or Optional,DB table,Provided by,Section,Depends on
+1,group_member,Entity,"Entity / group member, e.g. HASE, HSBC",Basic Info,Required,tbl_use_case,Business,Basic Information,
+2,country_code,Market,"use case cover business area. E.g.:
+INHK -- HK / MO
+HASE only HK.",Basic Info,Required,tbl_use_case,Business,Basic Information,
+3,line_of_business,Line Of Business,Line of business,Basic Info,Required,tbl_use_case,Business,Basic Information,create mode editable
+4,use_case_name,Use Case Name,"The business scenario for the message triggering, it's for user to check the related message delivery information in MDC MI report",Basic Info,Required,tbl_use_case,Business,Basic Information,
+5,project_name,Project Name,Project name,Basic Info,Required,tbl_use_case,Business / IT PM,Basic Information,
+6,source_system,Source System,Source system name that will pass the notification request to MDC,Basic Info,Required,tbl_use_case,Business / IT PM / Source System IT,Technical Requirement,
+7,downstream_name,Downstream Name,Downstream system/name that MDC will pass the notification request from MDC,Basic Info,Optional,tbl_use_case_ext,Business / IT PM / Downstream System IT,Technical Requirement,
+8,service_line,Service Line,"Message servicing nature, servicing or marketing",Basic Info,Required,tbl_use_case_ext,Business,Message Classification,
+9,depart_head,Depart. Head,"Department head, MD or GCB 2",Extension Info,Required by UI,tbl_use_case_ext,Business,Basic Information,
+10,team_head,Team Head,"Team head, GCB 3",Extension Info,Required by UI,tbl_use_case_ext,Business,Basic Information,
+11,message_owner,Message Owner,"Message owner, GCB 5 or above",Extension Info,Required,tbl_use_case_ext,Business,Basic Information,
+12,business_line_1st_level,Business Line 1st Level,"Business line first level, the department of the department head",Extension Info,Required by UI,tbl_use_case_ext,Business,Basic Information,
+13,business_line_2nd_level,Business Line 2nd Level,"Business line second level, the department of the team head",Extension Info,Required by UI,tbl_use_case_ext,Business,Basic Information,
+14,delivery_schedule,Is 7*24,Whether delivery schedule supports 7*24,Extension Info,Required,tbl_use_case_ext,Business,Message Classification,
+15,delivery_schedule,Other,"If the delivery scheudle no nees to support 7*24, what's the expected delivery frequency",Extension Info,Required,,Business,Message Classification,
+16,high_risk_flag,Is High Risk,"High risk critical message flag
+- regulatory message
+- time sensitive message, like 'Card-Not-Present' message
+- message for high-risk transaction",Extension Info,Required,tbl_use_case_ext,Business,Message Classification,
+17,is_dual_channel,Is Dual Channel,"Dual channel message flag, if the message requires to send dual channel or not",Extension Info,Optional,tbl_use_case_ext,Business,Message Claasification,
+18,support_dual_vendor,Support Dual Vendor,"Support dual vendor flag, if the SMS requires to send through dual vendor or not, high-risk message is a must for this feature",Extension Info,Optional,tbl_use_case_ext,Business,Technical Requirement,
+19,business_team,Business Team,Business team,Extension Info,Optional,tbl_use_case_ext,Business,Basic Information,
+20,business_contact,Business Contact,Business contact,Extension Info,Optional,tbl_use_case_ext,Business,,
+21,message_trigger_conditions,Message Trigger Conditions,Message trigger conditions,Extension Info,Optional,tbl_use_case_ext,Business,Basic Information,
+22,message_journey,Message Journey,Message journey,Extension Info,Optional,tbl_use_case_ext,Business,,
+23,customer_journey,Customer Journey,Customer journey,Extension Info,Optional,tbl_use_case_ext,Business,,
+24,business_journey,Business Journey,Business journey,Extension Info,Optional,tbl_use_case_ext,Business,,
+25,remarks,Remarks,Key information,Extension Info,Optional,tbl_use_case_ext,Business / IT (if any),,
+26,regulatory_requirement,Regulatory Requirement,"Regulatory requirement details like MECP B9 + B11, TM-E-1 FAQ 4.1 Q11",Extension Info,Optional,tbl_use_case_ext,Business,Message Classification,
+27,cost_owner,Cost Owner,Cost owner,Extension Info,Required by UI,tbl_use_case_ext,Business,,
+28,channel,Delivery Channel,Selected delivery channel,Delivery Channel,Required,tbl_use_case_channel_rule,Business,Technical Requirement,
+29,priority,Priority,Channel priority / mandatory routing,Delivery Channel,Required when channel selected,tbl_use_case_channel_rule,Business,Technical Requirement,
+30,App Name,app_name,the App name for Push Notification,,Conditional,,business,Technical Requirement,PUSH Channel
+31,Send_to_China_flag,Send_to_China,Requires to send to China Mobile Number or NOT,Delivery Channel,Required for SMS,,Business,Technical Requirement,
+32,traffic_percentage,Traffic Percentage,"Traffic split percentage, normally 
+- high-risk real-time message: HTCL-100%, CSL-0% (resilience)
+- TC: one-time-password: HTCL-70%, CSL-30% (resilence)
+- real-time / batch message: HTCL-100%",Delivery Channel,Required for SMS/EMAIL multi-path; PUSH DAASC path can show it,tbl_use_case_channel_rule,Business / MDC IT,Technical Requirement,"PUSH,SMS,EMAIL"
+33,sender,Sender,Sender ID/address/name depending on channel,Delivery Channel,Conditional,tbl_use_case_channel_rule,Business,Technical Requirement,"SMS
+- sender id number
+
+EMAIL
+- sender domain, only the bold place can self-identify
+hangseng@mail.test.hangseng.com"
+34,sender_name,Sender Name,Email sender name,Delivery Channel,Conditional,tbl_use_case_channel_rule,Business,Technical Requirement,"EMAIL router contains PFP
+can self-identify but most of HASE cases are using 恒生銀行Hang Seng Bank"
+35,cost_center_id,Cost Center Id,SMS cost center id,Delivery Channel,Conditional,tbl_use_case_channel_rule,Business,Technical Requirement,"SMS, e.g. 25267613"
+36,encrypt_type,Encrypt Type,"Email encryption type
+- TLS is for public or internal
+- Encrypt is for restrited or highly restrited",Delivery Channel,Conditional,tbl_use_case_channel_rule,Business,Technical Requirement,EMAIL PFP path
+37,"push_optin_flag
+
+",Master,Opt-in master flag,Opt-In Flag,Optional / generated,tbl_use_case,Business,Technical Requirement,PUSH Channel if select then must open
+38,"marketing_optin_flag
+marketing_push_optin_flag",Marketing,Push marketing opt-in flag,Opt-In Flag,Optional / generated,tbl_use_case,Business,Technical Requirement,PUSH appName
+39,high_risk_push_optin_flag,High Risk,Push high risk opt-in flag,Opt-In Flag,Optional / generated,tbl_use_case,Business,Technical Requirement,PUSH DAASC
+40,bounce_back,Callback,"Bounce back callback flag, mobile will call MDC API to let MDC know when it received the PN, and MDC can bounce back to trigger next channel if system can not get the API call back after a pre-defined period, like 15mins",Bounce Back,Required by section,tbl_use_case,Business,Technical Requirement,PUSH Channel才要
+41,letter_bounce_back_success_flag,Letter Bounce Back,"Letter bounce back success flag, it's for the INHK eStatement/eAdvice case, which trigger e-Notification when the eStatement/eAdvice ready in website",Bounce Back,Optional,tbl_use_case,Business,Technical Requirement,
+42,push_bounce_back_period,Push Bounce Back Period,"Push bounce back period in minutes, will trigger bounce back to next channel if no any call-back from mobile for the PN after this pre-set period",Bounce Back,Optional,tbl_use_case,Business,Technical Requirement,bounce_back
+43,sms_bounce_back_period,SMS Bounce Back Period,"SMS bounce back period in minutes, will trigger bounce back to next channel if haven't gotten the successful SENT status for SMS after this pre-set period",Bounce Back,Optional,tbl_use_case,Business,Technical Requirement,unknown_bounce_back_status
+44,email_bounce_back_period,Email Bounce Back Period,"Email bounce back period in minutes, will trigger bounce back to next channel if haven't gotten the successful SENT status for EMAIL after this pre-set period",Bounce Back,Optional,tbl_use_case,Business,Technical Requirement ,unknown_bounce_back_status
+45,letter_bounce_back_period,Letter Bounce Back Period,"Letter bounce back period in minutes, , will trigger bounce back to next channel if haven't gotten the successful FAILED status for LETTER after this pre-set period",Bounce Back,Optional,tbl_use_case,Business,Technical Requirement,unknown_bounce_back_status
+46,bounce_back_next_channel,Bounce Back Next Channel,Whether route to next channel after bounce back(got the status = failed for the related channel delivery),Bounce Back,Optional,tbl_use_case,Business,Technical Requirement,controls unknownBounceBackStatus area
+47,unknown_bounce_back_status,Unknown Bounce Back Status,"When opened this button, MDC will check the channel bounce back period set above and bounce back to trigger next channel if we haven't gotten the successful 'SENT' status",Bounce Back,Optional,tbl_use_case,Business,Technical Requirement,
+48,auto_bounce_back_flag,Auto Update Invalid Flag to CUS,Auto update mobile number / email invalid flag to CUS when getting the failed status(some failed reason) for SMS / Email delivery,Bounce Back,Optional,tbl_use_case,Business,Technical Requirement,controls customer online check area
