@@ -269,45 +269,15 @@ When a user selects one or more delivery channels, specific fields become visibl
 | `letter_bounce_back_success_flag` | | | | ✅ |
 | `letter_bounce_back_period` | | | | ✅ |
 
-#### Channel Dependency Flowchart
+#### Fields Activated by Channel
 
-```
-                        ┌─────────────────────┐
-                        │  Channel Selected?   │
-                        └──────────┬──────────┘
-                                   │
-          ┌────────────┬───────────┼───────────┬────────────┐
-          ▼            ▼           ▼           ▼            │
-      ┌───────┐   ┌────────┐  ┌────────┐  ┌─────────┐     │
-      │  SMS  │   │ EMAIL  │  │  PUSH  │  │ LETTER  │     │
-      └───┬───┘   └───┬────┘  └───┬────┘  └────┬────┘     │
-          │           │           │             │          │
-          ▼           ▼           ▼             ▼          │
-    ┌───────────┐ ┌──────────┐ ┌────────────┐ ┌──────────┐│
-    │ sender    │ │ sender   │ │ app_name   │ │ letter_  ││
-    │ send_to_  │ │ sender_  │ │            │ │ bounce_  ││
-    │  china    │ │ name     │ │ Opt-In:    │ │ back_    ││
-    │ cost_     │ │ encrypt_ │ │  push_     │ │ success  ││
-    │  center   │ │  type    │ │  optin     │ │ _flag    ││
-    │ traffic_  │ │ traffic_ │ │  marketing │ │ letter_  ││
-    │  %        │ │  %       │ │  _optin    │ │ bounce_  ││
-    │           │ │          │ │  high_risk │ │  _period ││
-    │ sms_      │ │ email_   │ │  _optin    │ └──────────┘│
-    │ bounce_   │ │ bounce_  │ │            │             │
-    │  period   │ │  period  │ │ Bounce:    │             │
-    └───────────┘ └──────────┘ │  bounce_   │             │
-                               │  _back     │             │
-                               │  push_     │             │
-                               │  bounce_   │             │
-                               │  _period   │             │
-                               └────────────┘             │
-                                                          │
-    ┌─────────────────────────────────────────────────────┘
-    │  Applies to ALL channels:
-    │  • priority
-    │  • traffic_percentage (SMS/EMAIL/PUSH only)
-    ▼
-```
+| Channel | Activated Fields |
+|---------|------------------|
+| **SMS** | `priority`, `send_to_china_flag`, `sender`, `cost_center_id`, `traffic_percentage`, `sms_bounce_back_period` |
+| **EMAIL** | `priority`, `sender`, `sender_name`, `encrypt_type`, `traffic_percentage`, `email_bounce_back_period` |
+| **PUSH** | `priority`, `app_name`, `traffic_percentage`, `push_optin_flag`, `marketing_optin_flag`, `high_risk_push_optin_flag`, `bounce_back`, `push_bounce_back_period` |
+| **LETTER** | `priority`, `letter_bounce_back_success_flag`, `letter_bounce_back_period` |
+| **All Channels** | `priority`, `traffic_percentage` (SMS/EMAIL/PUSH only) |
 
 ---
 
@@ -492,123 +462,75 @@ Fields in one module can affect fields in another module.
 
 ## 6. Data Architecture
 
-### Simplified ERD (Business Field Names)
+### Database Tables Overview
 
-The 48 fields are stored across **3 database tables**. The following ERD shows the logical grouping of fields by table, using business field names.
+The 48 fields are stored across **3 database tables**:
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                                                                                 │
-│   tbl_use_case (Core Campaign Identity)                                         │
-│   ┌─────────────────────────────────────────────────────────────────────────┐   │
-│   │                                                                         │   │
-│   │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │   │
-│   │  │ group_member     │  │ country_code     │  │ line_of_business │      │   │
-│   │  │ (Entity)         │  │ (Market)         │  │ (LOB)            │      │   │
-│   │  └──────────────────┘  └──────────────────┘  └──────────────────┘      │   │
-│   │                                                                         │   │
-│   │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │   │
-│   │  │ use_case_name    │  │ project_name     │  │ source_system    │      │   │
-│   │  │ (Use Case Name)  │  │ (Project Name)   │  │ (Source System)  │      │   │
-│   │  └──────────────────┘  └──────────────────┘  └──────────────────┘      │   │
-│   │                                                                         │   │
-│   │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │   │
-│   │  │ service_line     │  │ high_risk_flag   │  │ delivery_schedule│      │   │
-│   │  │ (Service Line)   │  │ (Is High Risk)   │  │ (Is 7×24)        │      │   │
-│   │  └──────────────────┘  └──────────────────┘  └──────────────────┘      │   │
-│   │                                                                         │   │
-│   │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │   │
-│   │  │ is_dual_channel  │  │ bounce_back      │  │ letter_bounce_   │      │   │
-│   │  │ (Is Dual Channel)│  │ (Callback)       │  │  back_success    │      │   │
-│   │  └──────────────────┘  └──────────────────┘  │  (Letter BB)     │      │   │
-│   │                                               └──────────────────┘      │   │
-│   │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │   │
-│   │  │ push_optin_flag  │  │ marketing_optin  │  │ high_risk_push_  │      │   │
-│   │  │ (Master Opt-in)  │  │  _flag           │  │  optin_flag      │      │   │
-│   │  │                  │  │ (Marketing)      │  │ (High Risk)      │      │   │
-│   │  └──────────────────┘  └──────────────────┘  └──────────────────┘      │   │
-│   │                                                                         │   │
-│   └─────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                 │
-│                          │                                                      │
-│                          │ 1                                                    │
-│                          │                                                      │
-│                          ▼ N                                                    │
-│   tbl_use_case_ext (Extended Campaign Details)                                  │
-│   ┌─────────────────────────────────────────────────────────────────────────┐   │
-│   │                                                                         │   │
-│   │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │   │
-│   │  │ downstream_name  │  │ depart_head      │  │ team_head        │      │   │
-│   │  │ (Downstream)     │  │ (Depart. Head)   │  │ (Team Head)      │      │   │
-│   │  └──────────────────┘  └──────────────────┘  └──────────────────┘      │   │
-│   │                                                                         │   │
-│   │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │   │
-│   │  │ message_owner    │  │ business_line_   │  │ business_line_   │      │   │
-│   │  │ (Message Owner)  │  │  1st_level       │  │  2nd_level       │      │   │
-│   │  └──────────────────┘  │ (BL 1st Level)   │  │ (BL 2nd Level)   │      │   │
-│   │                         └──────────────────┘  └──────────────────┘      │   │
-│   │                                                                         │   │
-│   │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │   │
-│   │  │ business_team    │  │ business_contact │  │ message_trigger_ │      │   │
-│   │  │ (Business Team)  │  │ (Business Contact│  │  conditions      │      │   │
-│   │  └──────────────────┘  └──────────────────┘  │ (Trigger Conds)  │      │   │
-│   │                                               └──────────────────┘      │   │
-│   │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │   │
-│   │  │ message_journey  │  │ customer_journey │  │ business_journey │      │   │
-│   │  │ (Message Journey)│  │ (Cust. Journey)  │  │ (Bus. Journey)   │      │   │
-│   │  └──────────────────┘  └──────────────────┘  └──────────────────┘      │   │
-│   │                                                                         │   │
-│   │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │   │
-│   │  │ remarks          │  │ regulatory_      │  │ cost_owner       │      │   │
-│   │  │ (Remarks)        │  │  requirement     │  │ (Cost Owner)     │      │   │
-│   │  └──────────────────┘  │ (Reg. Requirement│  └──────────────────┘      │   │
-│   │                         └──────────────────┘                            │   │
-│   │  ┌──────────────────┐                                                   │   │
-│   │  │ support_dual_    │                                                   │   │
-│   │  │ vendor           │                                                   │   │
-│   │  │ (Dual Vendor)    │                                                   │   │
-│   │  └──────────────────┘                                                   │   │
-│   │                                                                         │   │
-│   └─────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                 │
-│                          │                                                      │
-│                          │ 1                                                    │
-│                          │                                                      │
-│                          ▼ N                                                    │
-│   tbl_use_case_channel_rule (Channel-Specific Configuration)                    │
-│   ┌─────────────────────────────────────────────────────────────────────────┐   │
-│   │                                                                         │   │
-│   │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │   │
-│   │  │ channel          │  │ priority         │  │ traffic_         │      │   │
-│   │  │ (Delivery Channel│  │ (Priority)       │  │  percentage      │      │   │
-│   │  │  SMS/EMAIL/      │  │                  │  │ (Traffic %)      │      │   │
-│   │  │  PUSH/LETTER)    │  │                  │  │                  │      │   │
-│   │  └──────────────────┘  └──────────────────┘  └──────────────────┘      │   │
-│   │                                                                         │   │
-│   │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │   │
-│   │  │ sender           │  │ sender_name      │  │ cost_center_id   │      │   │
-│   │  │ (Sender ID/Addr) │  │ (Sender Name)    │  │ (Cost Center)    │      │   │
-│   │  └──────────────────┘  └──────────────────┘  └──────────────────┘      │   │
-│   │                                                                         │   │
-│   │  ┌──────────────────┐                                                   │   │
-│   │  │ encrypt_type     │                                                   │   │
-│   │  │ (Encrypt Type)   │                                                   │   │
-│   │  └──────────────────┘                                                   │   │
-│   │                                                                         │   │
-│   └─────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                 │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
+| Table | Purpose | Field Count | Relationship |
+|-------|---------|-------------|--------------|
+| `tbl_use_case` | Core campaign identity, classification, and opt-in flags | 16 | Primary record; one per campaign |
+| `tbl_use_case_ext` | Extended details: ownership, journeys, business context | 19 | 1:N with `tbl_use_case` |
+| `tbl_use_case_channel_rule` | Channel-specific delivery configuration | 9 | 1:N with `tbl_use_case`; one rule per channel |
 
-### Table Relationships Summary
+### Table: `tbl_use_case` (Core Campaign Identity)
 
-| Table | Purpose | Field Count | Key Relationship |
-|-------|---------|-------------|-----------------|
-| `tbl_use_case` | Core campaign identity, classification, and opt-in flags | 16 | Primary record; one record per campaign |
-| `tbl_use_case_ext` | Extended details: ownership, journeys, business context | 19 | 1:N with `tbl_use_case`; one extension per campaign |
-| `tbl_use_case_channel_rule` | Channel-specific delivery configuration | 9 | 1:N with `tbl_use_case`; one rule per channel per campaign |
+| Field Name | Display Name | Description |
+|------------|--------------|-------------|
+| `group_member` | Entity | HASE or HSBC |
+| `country_code` | Market | INHK (HK/MO) or HASE (HK only) |
+| `line_of_business` | LOB | WPB, RB, or CMB |
+| `use_case_name` | Use Case Name | Campaign name |
+| `project_name` | Project Name | Project identifier |
+| `source_system` | Source System | Originating system |
+| `service_line` | Service Line | Servicing or Marketing |
+| `high_risk_flag` | Is High Risk | Yes/No |
+| `delivery_schedule` | Is 7×24 | 7x24 or custom schedule |
+| `is_dual_channel` | Is Dual Channel | Dual channel flag |
+| `bounce_back` | Callback | Bounce back callback flag |
+| `letter_bounce_back_success_flag` | Letter BB | Letter bounce back flag |
+| `push_optin_flag` | Master Opt-in | Opt-in master flag |
+| `marketing_optin_flag` | Marketing Opt-in | Push marketing opt-in |
+| `high_risk_push_optin_flag` | High Risk Opt-in | Push high risk opt-in |
 
----
+### Table: `tbl_use_case_ext` (Extended Campaign Details)
+
+| Field Name | Display Name | Description |
+|------------|--------------|-------------|
+| `downstream_name` | Downstream | Downstream system name |
+| `depart_head` | Depart. Head | Department head name |
+| `team_head` | Team Head | Team head name |
+| `message_owner` | Message Owner | Message owner name |
+| `business_line_1st_level` | BL 1st Level | Business line first level |
+| `business_line_2nd_level` | BL 2nd Level | Business line second level |
+| `business_team` | Business Team | Business team name |
+| `business_contact` | Business Contact | Business contact person |
+| `message_trigger_conditions` | Trigger Conditions | Message trigger conditions |
+| `message_journey` | Message Journey | Message journey type |
+| `customer_journey` | Cust. Journey | Customer journey type |
+| `business_journey` | Bus. Journey | Business journey type |
+| `remarks` | Remarks | Additional notes |
+| `regulatory_requirement` | Reg. Requirement | Regulatory requirements |
+| `cost_owner` | Cost Owner | Cost owner name |
+| `support_dual_vendor` | Dual Vendor | Support dual vendor flag |
+
+### Table: `tbl_use_case_channel_rule` (Channel-Specific Configuration)
+
+| Field Name | Display Name | Description |
+|------------|--------------|-------------|
+| `channel` | Delivery Channel | SMS, EMAIL, PUSH, or LETTER |
+| `priority` | Priority | High, Medium, or Low |
+| `traffic_percentage` | Traffic % | Traffic split percentage |
+| `sender` | Sender ID/Addr | Sender ID or address |
+| `sender_name` | Sender Name | Email sender name |
+| `cost_center_id` | Cost Center | SMS cost center ID |
+| `encrypt_type` | Encrypt Type | TLS or Encrypt |
+| `send_to_china_flag` | Send to China | China mobile number flag |
+| `app_name` | App Name | Push notification app name |
+
+### Relationships
+
+- Each `tbl_use_case` can have **one** `tbl_use_case_ext` (1:1)
+- Each `tbl_use_case` can have **multiple** `tbl_use_case_channel_rule` records (1:N), one per selected channel
 
 ## 7. Validation Rules & Business Rules
 
