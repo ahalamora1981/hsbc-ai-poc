@@ -298,101 +298,38 @@ Some fields become visible, required, or change behavior based on the **value** 
 | `marketing_optin_flag` | `app_name` | Has value | Field becomes visible |
 | `line_of_business` | (create mode) | Always | Editable only in create mode |
 
-#### Value Dependency Flowcharts
+#### Value Dependency Rules
 
-**1. Delivery Schedule Flow:**
+**1. Delivery Schedule:**
 
-```
-                 ┌─────────────────────┐
-                 │ delivery_schedule ?  │
-                 └──────────┬──────────┘
-                            │
-              ┌─────────────┴─────────────┐
-              ▼                           ▼
-        ┌──────────┐                ┌──────────┐
-        │   Yes    │                │    No    │
-        │  (7×24)  │                │          │
-        └──────────┘                └────┬─────┘
-                                         │
-                                         ▼
-                              ┌──────────────────────┐
-                              │ delivery_schedule_    │
-                              │ other                 │
-                              │ (REQUIRED - specify   │
-                              │  delivery frequency)  │
-                              └──────────────────────┘
-```
+| Condition | Result |
+|-----------|--------|
+| `delivery_schedule` = `Yes` (7×24) | No additional field needed |
+| `delivery_schedule` = `No` | `delivery_schedule_other` becomes **required** (specify delivery frequency) |
 
-**2. High Risk → Dual Vendor Flow:**
+**2. High Risk → Dual Vendor:**
 
-```
-                 ┌─────────────────────┐
-                 │  high_risk_flag ?    │
-                 └──────────┬──────────┘
-                            │
-              ┌─────────────┴─────────────┐
-              ▼                           ▼
-        ┌──────────┐                ┌──────────┐
-        │   Yes    │                │    No    │
-        └────┬─────┘                └──────────┘
-             │
-             ▼
-   ┌────────────────────────┐
-   │ support_dual_vendor    │
-   │ MUST be = Yes          │
-   │ (Business Rule:        │
-   │  high-risk messages    │
-   │  require dual vendor)  │
-   └────────────────────────┘
-```
+| Condition | Result |
+|-----------|--------|
+| `high_risk_flag` = `Yes` | `support_dual_vendor` **must** be `Yes` (business rule: high-risk messages require dual vendor) |
+| `high_risk_flag` = `No` | `support_dual_vendor` is optional |
 
-**3. Bounce Back Period Flows:**
+**3. Bounce Back Period:**
 
-```
-  PUSH Channel:                      SMS / EMAIL / LETTER Channels:
+| Channel | Condition | Result |
+|---------|-----------|--------|
+| PUSH | `bounce_back` = `Yes` | `push_bounce_back_period` becomes visible |
+| SMS | `unknown_bounce_back_status` = `Yes` | `sms_bounce_back_period` becomes visible |
+| EMAIL | `unknown_bounce_back_status` = `Yes` | `email_bounce_back_period` becomes visible |
+| LETTER | `unknown_bounce_back_status` = `Yes` | `letter_bounce_back_period` becomes visible |
 
-  ┌──────────────┐                   ┌───────────────────────────┐
-  │ bounce_back? │                   │ unknown_bounce_back_      │
-  └──────┬───────┘                   │ status?                   │
-         │                           └─────────────┬─────────────┘
-    ┌────┴────┐                                    │
-    ▼         ▼                              ┌─────┴─────┐
-  Yes        No                              ▼           ▼
-    │                                       Yes         No
-    ▼                                         │
-  ┌──────────────────────┐                    ▼
-  │ push_bounce_back_    │         ┌─────────────────────────┐
-  │ period               │         │ sms_bounce_back_period  │
-  │ (visible)            │         │ email_bounce_back_period│
-  └──────────────────────┘         │ letter_bounce_back_     │
-                                   │   period                │
-                                   │ (visible based on       │
-                                   │  selected channel)      │
-                                   └─────────────────────────┘
-```
+**4. Opt-In Flag Hierarchy (PUSH channel only):**
 
-**4. Opt-In Flag Hierarchy:**
-
-```
-                    ┌─────────────────────┐
-                    │  PUSH Channel?      │
-                    └──────────┬──────────┘
-                               │
-                               ▼ (if PUSH selected)
-                    ┌─────────────────────┐
-                    │ push_optin_flag     │
-                    │ (Master Opt-in)     │
-                    └──────────┬──────────┘
-                               │
-              ┌────────────────┴────────────────┐
-              ▼                                 ▼
-   ┌─────────────────────┐          ┌──────────────────────┐
-   │ marketing_optin_    │          │ high_risk_push_      │
-   │ flag                │          │ optin_flag           │
-   │ (depends on PUSH +  │          │ (depends on PUSH     │
-   │  app_name value)    │          │  DAASC path)         │
-   └─────────────────────┘          └──────────────────────┘
-```
+| Level | Field | Condition |
+|-------|-------|-----------|
+| 1 | `push_optin_flag` | Always visible when PUSH selected |
+| 2 | `marketing_optin_flag` | Visible when PUSH selected AND `app_name` has value |
+| 3 | `high_risk_push_optin_flag` | Visible when PUSH selected (DAASC path) |
 
 ---
 
@@ -400,65 +337,25 @@ Some fields become visible, required, or change behavior based on the **value** 
 
 Fields in one module can affect fields in another module.
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         CROSS-MODULE DEPENDENCY MAP                     │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  ┌──────────────┐         ┌──────────────────┐        ┌─────────────┐  │
-│  │  Basic Info   │         │  Extension Info   │        │   Delivery  │  │
-│  │              │         │                  │        │   Channel   │  │
-│  │ service_line │────────▶│ regulatory_      │        │             │  │
-│  │ (Servicing/  │         │  requirement     │        │  channel ───┼──┼──┐
-│  │  Marketing)  │         │ (recommended if  │        │  (SMS/EMAIL/│  │  │
-│  │              │         │  Servicing)      │        │  PUSH/      │  │  │
-│  └──────────────┘         │                  │        │  LETTER)    │  │  │
-│                           │ high_risk_flag ──┼────────┼─────────────┼──┼──┤
-│                           │                  │        │             │  │  │
-│                           │ delivery_schedule│        └─────────────┘  │  │
-│                           │  └▶ other sched  │                         │  │
-│                           │                  │                         │  │
-│                           │ support_dual_    │                         │  │
-│                           │  vendor          │                         │  │
-│                           │  (must=Yes if    │                         │  │
-│                           │   high_risk)     │                         │  │
-│                           └──────────────────┘                         │  │
-│                                                                        │  │
-│  ┌──────────────────────┐     ┌──────────────────────────────────────┐ │  │
-│  │    Opt-In Flag        │     │          Bounce Back                 │ │  │
-│  │                      │     │                                      │ │  │
-│  │ push_optin_flag ◀────┼─────┤ bounce_back (PUSH only)              │ │  │
-│  │ marketing_optin ◀────┼─────┤ push_bounce_back_period ◀── bounce   │ │  │
-│  │ high_risk_optin ◀────┼─────┤ sms_bounce_back_period ◀── unknown   │ │  │
-│  │                      │     │ email_bounce_back_period ◀── unknown  │ │  │
-│  └──────────────────────┘     │ letter_bounce_back_period ◀── unknown │ │  │
-│                               │ bounce_back_next_channel              │ │  │
-│                               │ auto_bounce_back_flag                 │ │  │
-│                               └──────────────────────────────────────┘ │  │
-│                                                                        │  │
-│  Legend: ───▶ activates/enables    ◀──── depends on                    │  │
-│                                                                        │  │
-└────────────────────────────────────────────────────────────────────────┘  │
-                                                                            │
-        ┌───────────────────────────────────────────────────────────────────┘
-        │
-        │  Channel selection drives visibility across ALL modules:
-        │
-        │  SMS ──────▶ Delivery Channel: sender, send_to_china, cost_center_id, traffic_%
-        │           ──▶ Bounce Back: sms_bounce_back_period
-        │
-        │  EMAIL ───▶ Delivery Channel: sender, sender_name, encrypt_type, traffic_%
-        │           ──▶ Bounce Back: email_bounce_back_period
-        │
-        │  PUSH ────▶ Delivery Channel: app_name, traffic_%
-        │           ──▶ Opt-In Flag: push_optin_flag, marketing_optin, high_risk_optin
-        │           ──▶ Bounce Back: bounce_back, push_bounce_back_period
-        │
-        │  LETTER ──▶ Bounce Back: letter_bounce_back_success_flag, letter_bounce_back_period
-        └───────────────────────────────────────────────────────────────────
-```
+#### Module → Module Dependencies
 
----
+| Source Module | Source Field | Target Module | Target Field | Relationship |
+|--------------|--------------|---------------|--------------|--------------|
+| Basic Info | `service_line` | Extension Info | `regulatory_requirement` | Recommended if Servicing |
+| Extension Info | `high_risk_flag` | Extension Info | `support_dual_vendor` | Must be Yes if high risk |
+| Extension Info | `delivery_schedule` | Extension Info | `delivery_schedule_other` | Required if not 7×24 |
+| Delivery Channel | `channel` | Bounce Back | Various periods | Channel selection activates bounce back fields |
+| Delivery Channel | `channel` | Opt-In Flag | Various opt-in flags | PUSH activates opt-in flags |
+| Bounce Back | `bounce_back` | Opt-In Flag | `push_optin_flag` | Activates push opt-in |
+
+#### Channel → Cross-Module Field Activation
+
+| Channel | Delivery Channel Fields | Opt-In Flag Fields | Bounce Back Fields |
+|---------|------------------------|-------------------|-------------------|
+| **SMS** | `sender`, `send_to_china_flag`, `cost_center_id`, `traffic_percentage` | — | `sms_bounce_back_period` |
+| **EMAIL** | `sender`, `sender_name`, `encrypt_type`, `traffic_percentage` | — | `email_bounce_back_period` |
+| **PUSH** | `app_name`, `traffic_percentage` | `push_optin_flag`, `marketing_optin_flag`, `high_risk_push_optin_flag` | `bounce_back`, `push_bounce_back_period` |
+| **LETTER** | — | — | `letter_bounce_back_success_flag`, `letter_bounce_back_period` |
 
 ## 6. Data Architecture
 
