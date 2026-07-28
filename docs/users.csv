@@ -1,0 +1,15 @@
+Name,Grade,Title,Reports To,Level,Entity,Market,Line Of Business,Service Line,Depart. Head,Team Head,Message Owner,Business Line 1st Level,Business Line 2nd Level,Business Team,Business Contact
+Michael Wong,GCB1,CEO,Board,1,HASE,INHK,Corporate,Servicing,Michael Wong,Michael Wong,Michael Wong,,,C-Suite,michael.wong@hsbc.com.hk
+David Lau,GCB2,Head of Retail Banking,Michael Wong,2,HASE,INHK,Retail Banking,Marketing,David Lau,David Lau,David Lau,Retail Banking,,Personal Banking,david.lau@hsbc.com.hk
+Peter Cheung,GCB3,,David Lau,3,HASE,INHK,Retail Banking,Marketing,David Lau,Peter Cheung,Peter Cheung,Retail Banking,Card Services,Card Services,peter.cheung@hsbc.com.hk
+Kelvin Choi,GCB4,,Peter Cheung,4,HASE,INHK,Retail Banking,Marketing,David Lau,Peter Cheung,Kelvin Choi,Retail Banking,Card Services,Card Services,kelvin.choi@hsbc.com.hk
+Eric Chan,GCB5,,Kelvin Choi,5,HASE,INHK,Retail Banking,Marketing,David Lau,Peter Cheung,Eric Chan,Retail Banking,Card Services,Card Services,eric.chan@hsbc.com.hk
+Amy Tse,GCB3,,David Lau,3,HASE,INHK,Retail Banking,Marketing,David Lau,Amy Tse,Amy Tse,Retail Banking,Wealth Management,Wealth Management,amy.tse@hsbc.com.hk
+Grace Yip,GCB4,,Amy Tse,4,HASE,INHK,Retail Banking,Marketing,David Lau,Amy Tse,Grace Yip,Retail Banking,Wealth Management,Wealth Management,grace.yip@hsbc.com.hk
+Cindy Wong,GCB5,,Grace Yip,5,HASE,INHK,Retail Banking,Marketing,David Lau,Amy Tse,Cindy Wong,Retail Banking,Wealth Management,Wealth Management,cindy.wong@hsbc.com.hk
+Jennifer Lee,GCB2,Head of WPB,Michael Wong,2,HASE,INHK,Wealth & Personal Banking,Servicing,Jennifer Lee,Jennifer Lee,Jennifer Lee,Wealth & Personal Banking,,WPB Operations,jennifer.lee@hsbc.com.hk
+Sarah Chan,GCB1,COO,Board,1,HASE,INHK,Corporate,Servicing,Sarah Chan,Sarah Chan,Sarah Chan,,,RB Leadership,sarah.chan@hsbc.com.hk
+Vincent Ho,GCB2,Head of Operations & Technology,Sarah Chan,2,HASE,INHK,Operations & Technology,Servicing,Vincent Ho,Vincent Ho,Vincent Ho,Operations & Technology,,Technology Operations,vincent.ho@hsbc.com.hk
+Raymond Ng,GCB3,,Vincent Ho,3,HASE,INHK,Operations & Technology,Servicing,Vincent Ho,Raymond Ng,Raymond Ng,Operations & Technology,Technology Operations,Technology Operations,raymond.ng@hsbc.com.hk
+Jason Tam,GCB4,,Raymond Ng,4,HASE,INHK,Operations & Technology,Servicing,Vincent Ho,Raymond Ng,Jason Tam,Operations & Technology,Technology Operations,Technology Operations,jason.tam@hsbc.com.hk
+Andy Li,GCB5,,Jason Tam,5,HASE,INHK,Operations & Technology,Servicing,Vincent Ho,Raymond Ng,Andy Li,Operations & Technology,Technology Operations,Technology Operations,andy.li@hsbc.com.hk
