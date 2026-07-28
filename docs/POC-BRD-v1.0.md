@@ -1,0 +1,556 @@
+# POC Business Requirements Document (BRD)
+## Multi-Channel Delivery Configuration (MDC) — Campaign Field Setup
+
+| Item | Detail |
+|------|--------|
+| **Document Version** | 1.0 |
+| **Date** | 2025-07-27 |
+| **Status** | POC Draft |
+| **Prepared For** | Business Stakeholders |
+| **Document Type** | Proof of Concept — Business Requirements |
+
+---
+
+## Table of Contents
+
+1. [Executive Summary](#1-executive-summary)
+2. [POC Scope & Objectives](#2-poc-scope--objectives)
+3. [Application Overview](#3-application-overview)
+4. [Field Inventory by Module](#4-field-inventory-by-module)
+   - 4.1 [Basic Info](#41-basic-info)
+   - 4.2 [Extension Info](#42-extension-info)
+   - 4.3 [Delivery Channel](#43-delivery-channel)
+   - 4.4 [Opt-In Flag](#44-opt-in-flag)
+   - 4.5 [Bounce Back](#45-bounce-back)
+5. [Field Dependencies & Relationships](#5-field-dependencies--relationships)
+   - 5.1 [Channel-Driven Field Visibility](#51-channel-driven-field-visibility)
+   - 5.2 [Cross-Field Value Dependencies](#52-cross-field-value-dependencies)
+   - 5.3 [Cross-Module Dependencies](#53-cross-module-dependencies)
+6. [Data Architecture](#6-data-architecture)
+7. [Validation Rules & Business Rules](#7-validation-rules--business-rules)
+8. [Field Metadata](#8-field-metadata)
+9. [POC Limitations & Future Considerations](#9-poc-limitations--future-considerations)
+
+---
+
+## 1. Executive Summary
+
+This **Proof of Concept (POC)** document defines the business requirements for configuring multi-channel delivery campaigns within the MDC (Multi-Channel Delivery Configuration) system. It focuses on the **data model** — the fields required to define a campaign, their relationships, dependencies, validation rules, and how they map to underlying data structures.
+
+The POC supports four delivery channels: **SMS**, **EMAIL**, **PUSH**, and **LETTER**. A campaign configuration consists of 48 fields organized across 5 modules. Many fields are conditionally visible or required based on the selected delivery channels and the values of other fields. An AI Assistant guides business users through this complex field configuration process by intelligently sequencing prompts based on dependencies, pre-filling known values from reference use cases, and dynamically adapting questions to minimize conversation rounds while ensuring all required fields are captured.
+
+**POC Purpose**: This document serves as a business alignment artifact to validate the field structure, relationships, and business rules before proceeding to full system development.
+
+**AI Assistant Focus**: The POC emphasizes an AI Assistant that actively guides business users through the 48-field configuration process. Rather than presenting a static form, the assistant intelligently sequences field prompts based on dependencies, pre-fills known values from reference use cases, and dynamically adapts questions based on real-time user responses to minimize conversation rounds while ensuring all required fields are captured.
+
+---
+
+## 2. POC Scope & Objectives
+
+### POC Objectives
+
+| Objective | Description |
+|-----------|-------------|
+| **AI Assistant Guidance** | Demonstrate intelligent field prompting that reduces user effort through contextual, dependency-aware question sequencing |
+| **AI Assistant Feasibility** | Demonstrate AI-assisted field configuration with minimal conversation rounds |
+| **Validate Data Model** | Confirm the 48-field structure accurately represents business requirements |
+| **Validate Field Dependencies** | Verify channel-driven and value-based field visibility logic |
+| **Validate Business Rules** | Confirm validation rules and business constraints are correct |
+
+### In Scope (POC)
+
+- Field definitions, dependencies, and validation rules for all 5 modules
+- AI-assisted configuration for module-by-module field completion
+- Reference use case matching for field pre-population
+- Channel-driven field visibility logic
+- POC level UI/UX for demonstrating the campaign configuration workflow
+
+### Out of Scope (POC)
+
+- Full production UI/UX implementation
+- Integration with production MDC backend systems
+- User authentication and role-based access control
+- Audit logging and compliance reporting
+- Multi-language support
+
+---
+
+## 3. Application Overview
+
+### Business Purpose
+
+The MDC Campaign Configuration application enables business teams to define and register notification campaigns that deliver messages to customers across multiple channels. Each campaign configuration captures:
+
+- **Who** owns and manages the campaign (people and departments)
+- **What** type of message is being sent (classification, risk level)
+- **Where** it applies (entity, market, line of business)
+- **How** messages are delivered (channels, routing, sender identity)
+- **What happens when delivery fails** (bounce back, fallback channels)
+
+### AI-Assisted Configuration (POC Capability)
+
+The POC includes an intelligent assistant that guides users through the field configuration process. The assistant operates with the following business requirements:
+
+- **Module-by-module guidance**: The assistant walks users through each module in sequence (Basic Info → Extension Info → Delivery Channel → Opt-In Flag → Bounce Back), ensuring all required fields are completed before advancing.
+- **Minimal conversation rounds**: The assistant is designed to collect the maximum amount of information per interaction, reducing the number of back-and-forth exchanges needed to complete a full campaign configuration.
+- **Contextual field prompting**: The assistant understands field dependencies and only prompts for fields that are relevant given the current configuration (e.g., it will not ask for PUSH-specific fields if no PUSH channel is selected).
+- **Reference use cases**: The assistant can reference historical campaign configurations to pre-fill fields where patterns match, accelerating the setup process.
+
+> **POC Note**: The AI assistant demonstrates the feasibility of intelligent field guidance. Production implementation may include enhanced natural language understanding, integration with enterprise knowledge bases, and advanced pattern recognition.
+
+---
+
+## 4. Field Inventory by Module
+
+### Legend
+
+| Code | Meaning |
+|------|---------|
+| RQ | Required — must be filled to proceed |
+| RU | Required by UI — shown in the form, should be filled |
+| CD | Conditional — required only when a dependency is met |
+| OP | Optional — not required, user may fill if applicable |
+| DP | Has dependencies on other fields or channels |
+
+---
+
+### 4.1 Basic Info
+
+**Module Purpose**: Captures the fundamental identity of the campaign — who it belongs to, what market it serves, and which system triggers it.
+
+| # | Field Name | Display Name | Business Description | Required | Options / Enum | Provided By | Dependencies |
+|---|-----------|--------------|---------------------|----------|----------------|-------------|--------------|
+| 1 | `group_member` | Entity | Entity / group member | RQ | `HASE`, `HSBC` | Business | — |
+| 2 | `country_code` | Market | Business area the use case covers | RQ | `INHK` (HK/MO), `HASE` (HK only) | Business | — |
+| 3 | `line_of_business` | Line Of Business | Line of business | RQ | `WPB`, `RB`, `CMB` | Business | DP Editable in create mode only |
+| 4 | `use_case_name` | Use Case Name | Business scenario for message triggering; used for MDC MI report lookup | RQ | Free text | Business | — |
+| 5 | `project_name` | Project Name | Project name | RQ | Free text | Business / IT PM | — |
+| 6 | `source_system` | Source System | Source system that passes notification request to MDC | RQ | Free text | Business / IT PM / Source System IT | — |
+| 7 | `downstream_name` | Downstream Name | Downstream system that MDC passes notification request to | OP | Free text | Business / IT PM / Downstream System IT | — |
+| 8 | `service_line` | Service Line | Message servicing nature | RQ | `Servicing`, `Marketing` | Business | — |
+
+**Total fields**: 8 (7 Required, 1 Optional)
+
+---
+
+### 4.2 Extension Info
+
+**Module Purpose**: Captures ownership hierarchy, message classification (risk, schedule, dual-channel), and business context (journeys, trigger conditions, regulatory requirements).
+
+| # | Field Name | Display Name | Business Description | Required | Options / Enum | Provided By | Dependencies |
+|---|-----------|--------------|---------------------|----------|----------------|-------------|--------------|
+| 9 | `depart_head` | Depart. Head | Department head, MD or GCB 2 | RU | Free text | Business | — |
+| 10 | `team_head` | Team Head | Team head, GCB 3 | RU | Free text | Business | — |
+| 11 | `message_owner` | Message Owner | Message owner, GCB 5 or above | RQ | Free text | Business | — |
+| 12 | `business_line_1st_level` | Business Line 1st Level | Department of the department head | RU | Free text | Business | — |
+| 13 | `business_line_2nd_level` | Business Line 2nd Level | Department of the team head | RU | Free text | Business | — |
+| 14 | `delivery_schedule` | Is 7×24 | Whether delivery schedule supports 7×24 | RQ | `Yes` (7×24), `No` | Business | — |
+| 15 | `delivery_schedule_other` | Other Schedule | Expected delivery frequency if not 7×24 | RQ | Free text | Business | DP Depends on `delivery_schedule` = `No` |
+| 16 | `high_risk_flag` | Is High Risk | High risk critical message flag (regulatory, time-sensitive, high-risk transaction) | RQ | `Yes`, `No` | Business | — |
+| 17 | `is_dual_channel` | Is Dual Channel | Whether the message requires dual channel delivery | OP | `Yes`, `No` | Business | — |
+| 18 | `support_dual_vendor` | Support Dual Vendor | Whether SMS requires dual vendor routing; **mandatory for high-risk messages** | OP | `Yes`, `No` | Business | DP Business rule: if `high_risk_flag` = `Yes`, then must be `Yes` |
+| 19 | `business_team` | Business Team | Business team | OP | Free text | Business | — |
+| 20 | `business_contact` | Business Contact | Business contact | OP | Free text | Business | — |
+| 21 | `message_trigger_conditions` | Message Trigger Conditions | Message trigger conditions | OP | Free text (long) | Business | — |
+| 22 | `message_journey` | Message Journey | Message journey | OP | Free text | Business | — |
+| 23 | `customer_journey` | Customer Journey | Customer journey | OP | Free text | Business | — |
+| 24 | `business_journey` | Business Journey | Business journey | OP | Free text | Business | — |
+| 25 | `remarks` | Remarks | Key information | OP | Free text (long) | Business / IT (if any) | — |
+| 26 | `regulatory_requirement` | Regulatory Requirement | Regulatory requirement details (e.g., MECP B9 + B11, TM-E-1 FAQ 4.1 Q11) | OP | Free text | Business | — |
+| 27 | `cost_owner` | Cost Owner | Cost owner | RU | Free text | Business | — |
+
+**Total fields**: 19 (4 Required, 5 Required by UI, 10 Optional)
+
+---
+
+### 4.3 Delivery Channel
+
+**Module Purpose**: Defines which channels are used for message delivery and configures channel-specific settings (sender identity, routing, encryption, traffic distribution).
+
+| # | Field Name | Display Name | Business Description | Required | Options / Enum | Provided By | Dependencies |
+|---|-----------|--------------|---------------------|----------|----------------|-------------|--------------|
+| 28 | `channel` | Delivery Channel | Selected delivery channel(s) | RQ | `SMS`, `EMAIL`, `PUSH`, `LETTER` | Business | — |
+| 29 | `priority` | Priority | Channel priority / mandatory routing | CD | `High`, `Medium`, `Low` | Business | DP Required when any channel is selected |
+| 30 | `app_name` | App Name | App name for Push Notification | CD | Free text | Business | DP Depends on `PUSH` channel |
+| 31 | `send_to_china_flag` | Send to China | Whether to send to China mobile number | CD | `Yes`, `No` | Business | DP Depends on `SMS` channel |
+| 32 | `traffic_percentage` | Traffic Percentage | Traffic split percentage across vendor paths | CD | Numeric (0–100) | Business / MDC IT | DP Depends on `SMS`, `EMAIL`, `PUSH` |
+| 33 | `sender` | Sender | Sender ID/address/name depending on channel | CD | Free text | Business | DP Depends on `SMS`, `EMAIL` |
+| 34 | `sender_name` | Sender Name | Email sender name | CD | Free text | Business | DP Depends on `EMAIL` |
+| 35 | `cost_center_id` | Cost Center Id | SMS cost center ID | CD | Free text (numeric) | Business | DP Depends on `SMS` |
+| 36 | `encrypt_type` | Encrypt Type | Email encryption type | CD | `TLS` (public/internal), `Encrypt` (restricted/highly restricted) | Business | DP Depends on `EMAIL` PFP path |
+
+**Total fields**: 9 (1 Required, 8 Conditional)
+
+**Typical Traffic Percentage Patterns:**
+| Scenario | HTCL | CSL | Purpose |
+|----------|------|-----|---------|
+| High-risk real-time message | 100% | 0% | Resilience |
+| One-time-password (TC) | 70% | 30% | Resilience |
+| Real-time / batch message | 100% | — | Standard |
+
+**Sender ID Examples by Channel:**
+| Channel | Sender Format | Example |
+|---------|--------------|---------|
+| SMS | Sender ID number | e.g., `HASE` |
+| EMAIL | Sender domain (bold part self-identifiable) | hangseng@mail.test.**hangseng**.com |
+
+---
+
+### 4.4 Opt-In Flag
+
+**Module Purpose**: Manages customer opt-in preferences for push notification channels. These flags determine whether a customer has consented to receive specific types of push notifications.
+
+| # | Field Name | Display Name | Business Description | Required | Options / Enum | Provided By | Dependencies |
+|---|-----------|--------------|---------------------|----------|----------------|-------------|--------------|
+| 37 | `push_optin_flag` | Master | Opt-in master flag | OP | Boolean | Business | DP Depends on `PUSH` channel |
+| 38 | `marketing_optin_flag` | Marketing | Push marketing opt-in flag | OP | Boolean | Business | DP Depends on `PUSH` + `app_name` |
+| 39 | `high_risk_push_optin_flag` | High Risk | Push high risk opt-in flag | OP | Boolean | Business | DP Depends on `PUSH` DAASC |
+
+**Total fields**: 3 (all Optional / Generated)
+
+**Opt-In Flag Hierarchy:**
+```
+Master Opt-in (push_optin_flag)
+├── Marketing Opt-in (marketing_optin_flag)
+└── High Risk Opt-in (high_risk_push_optin_flag)
+```
+
+> **Note**: Opt-In Flag fields are only relevant when the **PUSH** channel is selected. They are auto-generated based on channel and sub-path selections.
+
+---
+
+### 4.5 Bounce Back
+
+**Module Purpose**: Configures fallback behavior when message delivery fails or does not receive confirmation within a specified period. Bounce back enables automatic routing to alternative channels.
+
+| # | Field Name | Display Name | Business Description | Required | Options / Enum | Provided By | Dependencies |
+|---|-----------|--------------|---------------------|----------|----------------|-------------|--------------|
+| 40 | `bounce_back` | Callback | Bounce back callback flag; mobile calls MDC API on PN receipt; triggers next channel if no callback within pre-set period | RU | `Yes`, `No` | Business | DP Depends on `PUSH` channel |
+| 41 | `letter_bounce_back_success_flag` | Letter Bounce Back | For INHK eStatement/eAdvice: triggers e-Notification when eStatement/eAdvice is ready on website | OP | `Yes`, `No` | Business | DP Depends on `LETTER` channel |
+| 42 | `push_bounce_back_period` | Push Bounce Back Period | Minutes to wait for PUSH callback before triggering next channel | OP | Numeric (minutes) | Business | DP Depends on `bounce_back` = `Yes` |
+| 43 | `sms_bounce_back_period` | SMS Bounce Back Period | Minutes to wait for SMS SENT status before triggering next channel | OP | Numeric (minutes) | Business | DP Depends on `unknown_bounce_back_status` |
+| 44 | `email_bounce_back_period` | Email Bounce Back Period | Minutes to wait for EMAIL SENT status before triggering next channel | OP | Numeric (minutes) | Business | DP Depends on `unknown_bounce_back_status` |
+| 45 | `letter_bounce_back_period` | Letter Bounce Back Period | Minutes to wait for LETTER FAILED status before triggering next channel | OP | Numeric (minutes) | Business | DP Depends on `unknown_bounce_back_status` |
+| 46 | `bounce_back_next_channel` | Bounce Back Next Channel | Whether to route to next channel after bounce back failure | OP | `Yes`, `No` | Business | — |
+| 47 | `unknown_bounce_back_status` | Unknown Bounce Back Status | When enabled, MDC checks bounce back periods and triggers next channel if no successful SENT status received | OP | `Yes`, `No` | Business | — |
+| 48 | `auto_bounce_back_flag` | Auto Update Invalid Flag | Auto-update mobile/email invalid flag to CUS when SMS/Email delivery fails with specific failure reasons | OP | `Yes`, `No` | Business | — |
+
+**Total fields**: 9 (1 Required by section, 8 Optional)
+
+---
+
+## 5. Field Dependencies & Relationships
+
+This section documents all dependency relationships between fields, channels, and modules.
+
+### 5.1 Channel-Driven Field Visibility
+
+When a user selects one or more delivery channels, specific fields become visible or required across multiple modules.
+
+#### Channel → Activated Fields Matrix
+
+| Field | SMS | EMAIL | PUSH | LETTER |
+|-------|:---:|:-----:|:----:|:------:|
+| **Delivery Channel** | | | | |
+| `priority` | RQ | RQ | RQ | RQ |
+| `send_to_china_flag` | RQ | | | |
+| `traffic_percentage` | RQ | RQ | RQ | |
+| `sender` | RQ | RQ | | |
+| `sender_name` | | RQ | | |
+| `cost_center_id` | RQ | | | |
+| `encrypt_type` | | RQ | | |
+| `app_name` | | | RQ | |
+| **Opt-In Flag** | | | | |
+| `push_optin_flag` | | | RQ | |
+| `marketing_optin_flag` | | | RQ | |
+| `high_risk_push_optin_flag` | | | RQ | |
+| **Bounce Back** | | | | |
+| `bounce_back` | | | RQ | |
+| `sms_bounce_back_period` | RQ | | | |
+| `email_bounce_back_period` | | RQ | | |
+| `push_bounce_back_period` | | | RQ | |
+| `letter_bounce_back_success_flag` | | | | RQ |
+| `letter_bounce_back_period` | | | | RQ |
+
+#### Fields Activated by Channel
+
+| Channel | Activated Fields |
+|---------|------------------|
+| **SMS** | `priority`, `send_to_china_flag`, `sender`, `cost_center_id`, `traffic_percentage`, `sms_bounce_back_period` |
+| **EMAIL** | `priority`, `sender`, `sender_name`, `encrypt_type`, `traffic_percentage`, `email_bounce_back_period` |
+| **PUSH** | `priority`, `app_name`, `traffic_percentage`, `push_optin_flag`, `marketing_optin_flag`, `high_risk_push_optin_flag`, `bounce_back`, `push_bounce_back_period` |
+| **LETTER** | `priority`, `letter_bounce_back_success_flag`, `letter_bounce_back_period` |
+| **All Channels** | `priority`, `traffic_percentage` (SMS/EMAIL/PUSH only) |
+
+---
+
+### 5.2 Cross-Field Value Dependencies
+
+Some fields become visible, required, or change behavior based on the **value** of another field.
+
+#### Value Dependency Matrix
+
+| Target Field | Depends On | Condition | Effect |
+|-------------|-----------|-----------|--------|
+| `delivery_schedule_other` | `delivery_schedule` | = `No` | Field becomes visible/required |
+| `support_dual_vendor` | `high_risk_flag` | = `Yes` | **Must** be `Yes` (business rule) |
+| `push_bounce_back_period` | `bounce_back` | = `Yes` | Field becomes visible |
+| `sms_bounce_back_period` | `unknown_bounce_back_status` | = `Yes` | Field becomes visible |
+| `email_bounce_back_period` | `unknown_bounce_back_status` | = `Yes` | Field becomes visible |
+| `letter_bounce_back_period` | `unknown_bounce_back_status` | = `Yes` | Field becomes visible |
+| `marketing_optin_flag` | `app_name` | Has value | Field becomes visible |
+| `line_of_business` | (create mode) | Always | Editable only in create mode |
+
+#### Value Dependency Rules
+
+**1. Delivery Schedule:**
+
+| Condition | Result |
+|-----------|--------|
+| `delivery_schedule` = `Yes` (7×24) | No additional field needed |
+| `delivery_schedule` = `No` | `delivery_schedule_other` becomes **required** (specify delivery frequency) |
+
+**2. High Risk → Dual Vendor:**
+
+| Condition | Result |
+|-----------|--------|
+| `high_risk_flag` = `Yes` | `support_dual_vendor` **must** be `Yes` (business rule: high-risk messages require dual vendor) |
+| `high_risk_flag` = `No` | `support_dual_vendor` is optional |
+
+**3. Bounce Back Period:**
+
+| Channel | Condition | Result |
+|---------|-----------|--------|
+| PUSH | `bounce_back` = `Yes` | `push_bounce_back_period` becomes visible |
+| SMS | `unknown_bounce_back_status` = `Yes` | `sms_bounce_back_period` becomes visible |
+| EMAIL | `unknown_bounce_back_status` = `Yes` | `email_bounce_back_period` becomes visible |
+| LETTER | `unknown_bounce_back_status` = `Yes` | `letter_bounce_back_period` becomes visible |
+
+**4. Opt-In Flag Hierarchy (PUSH channel only):**
+
+| Level | Field | Condition |
+|-------|-------|-----------|
+| 1 | `push_optin_flag` | Always visible when PUSH selected |
+| 2 | `marketing_optin_flag` | Visible when PUSH selected AND `app_name` has value |
+| 3 | `high_risk_push_optin_flag` | Visible when PUSH selected (DAASC path) |
+
+---
+
+### 5.3 Cross-Module Dependencies
+
+Fields in one module can affect fields in another module.
+
+#### Module → Module Dependencies
+
+| Source Module | Source Field | Target Module | Target Field | Relationship |
+|--------------|--------------|---------------|--------------|--------------|
+| Basic Info | `service_line` | Extension Info | `regulatory_requirement` | Recommended if Servicing |
+| Extension Info | `high_risk_flag` | Extension Info | `support_dual_vendor` | Must be Yes if high risk |
+| Extension Info | `delivery_schedule` | Extension Info | `delivery_schedule_other` | Required if not 7×24 |
+| Delivery Channel | `channel` | Bounce Back | Various periods | Channel selection activates bounce back fields |
+| Delivery Channel | `channel` | Opt-In Flag | Various opt-in flags | PUSH activates opt-in flags |
+| Bounce Back | `bounce_back` | Opt-In Flag | `push_optin_flag` | Activates push opt-in |
+
+#### Channel → Cross-Module Field Activation
+
+| Channel | Delivery Channel Fields | Opt-In Flag Fields | Bounce Back Fields |
+|---------|------------------------|-------------------|-------------------|
+| **SMS** | `sender`, `send_to_china_flag`, `cost_center_id`, `traffic_percentage` | — | `sms_bounce_back_period` |
+| **EMAIL** | `sender`, `sender_name`, `encrypt_type`, `traffic_percentage` | — | `email_bounce_back_period` |
+| **PUSH** | `app_name`, `traffic_percentage` | `push_optin_flag`, `marketing_optin_flag`, `high_risk_push_optin_flag` | `bounce_back`, `push_bounce_back_period` |
+| **LETTER** | — | — | `letter_bounce_back_success_flag`, `letter_bounce_back_period` |
+
+## 6. Data Architecture
+
+### Database Tables Overview
+
+The 48 fields are stored across **3 database tables**:
+
+| Table | Purpose | Field Count | Relationship |
+|-------|---------|-------------|--------------|
+| `tbl_use_case` | Core campaign identity, classification, and opt-in flags | 16 | Primary record; one per campaign |
+| `tbl_use_case_ext` | Extended details: ownership, journeys, business context | 19 | 1:N with `tbl_use_case` |
+| `tbl_use_case_channel_rule` | Channel-specific delivery configuration | 9 | 1:N with `tbl_use_case`; one rule per channel |
+
+### Table: `tbl_use_case` (Core Campaign Identity)
+
+| Field Name | Display Name | Description |
+|------------|--------------|-------------|
+| `group_member` | Entity | HASE or HSBC |
+| `country_code` | Market | INHK (HK/MO) or HASE (HK only) |
+| `line_of_business` | LOB | WPB, RB, or CMB |
+| `use_case_name` | Use Case Name | Campaign name |
+| `project_name` | Project Name | Project identifier |
+| `source_system` | Source System | Originating system |
+| `service_line` | Service Line | Servicing or Marketing |
+| `high_risk_flag` | Is High Risk | Yes/No |
+| `delivery_schedule` | Is 7×24 | 7x24 or custom schedule |
+| `is_dual_channel` | Is Dual Channel | Dual channel flag |
+| `bounce_back` | Callback | Bounce back callback flag |
+| `letter_bounce_back_success_flag` | Letter BB | Letter bounce back flag |
+| `push_optin_flag` | Master Opt-in | Opt-in master flag |
+| `marketing_optin_flag` | Marketing Opt-in | Push marketing opt-in |
+| `high_risk_push_optin_flag` | High Risk Opt-in | Push high risk opt-in |
+
+### Table: `tbl_use_case_ext` (Extended Campaign Details)
+
+| Field Name | Display Name | Description |
+|------------|--------------|-------------|
+| `downstream_name` | Downstream | Downstream system name |
+| `depart_head` | Depart. Head | Department head name |
+| `team_head` | Team Head | Team head name |
+| `message_owner` | Message Owner | Message owner name |
+| `business_line_1st_level` | BL 1st Level | Business line first level |
+| `business_line_2nd_level` | BL 2nd Level | Business line second level |
+| `business_team` | Business Team | Business team name |
+| `business_contact` | Business Contact | Business contact person |
+| `message_trigger_conditions` | Trigger Conditions | Message trigger conditions |
+| `message_journey` | Message Journey | Message journey type |
+| `customer_journey` | Cust. Journey | Customer journey type |
+| `business_journey` | Bus. Journey | Business journey type |
+| `remarks` | Remarks | Additional notes |
+| `regulatory_requirement` | Reg. Requirement | Regulatory requirements |
+| `cost_owner` | Cost Owner | Cost owner name |
+| `support_dual_vendor` | Dual Vendor | Support dual vendor flag |
+
+### Table: `tbl_use_case_channel_rule` (Channel-Specific Configuration)
+
+| Field Name | Display Name | Description |
+|------------|--------------|-------------|
+| `channel` | Delivery Channel | SMS, EMAIL, PUSH, or LETTER |
+| `priority` | Priority | High, Medium, or Low |
+| `traffic_percentage` | Traffic % | Traffic split percentage |
+| `sender` | Sender ID/Addr | Sender ID or address |
+| `sender_name` | Sender Name | Email sender name |
+| `cost_center_id` | Cost Center | SMS cost center ID |
+| `encrypt_type` | Encrypt Type | TLS or Encrypt |
+| `send_to_china_flag` | Send to China | China mobile number flag |
+| `app_name` | App Name | Push notification app name |
+
+### Relationships
+
+- Each `tbl_use_case` can have **one** `tbl_use_case_ext` (1:1)
+- Each `tbl_use_case` can have **multiple** `tbl_use_case_channel_rule` records (1:N), one per selected channel
+
+## 7. Validation Rules & Business Rules
+
+### 7.1 Field Requirement Rules
+
+| Rule ID | Field(s) | Rule Type | Rule Description |
+|---------|----------|-----------|-----------------|
+| VR-01 | `group_member`, `country_code`, `line_of_business`, `use_case_name`, `project_name`, `source_system`, `service_line` | Required | Must be filled before completing Basic Info module |
+| VR-02 | `message_owner`, `delivery_schedule`, `high_risk_flag` | Required | Must be filled before completing Extension Info module |
+| VR-03 | `channel` | Required | At least one delivery channel must be selected |
+| VR-04 | `depart_head`, `team_head`, `business_line_1st_level`, `business_line_2nd_level`, `cost_owner` | Required by UI | Displayed in form; strongly recommended to fill |
+| VR-05 | `priority` | Conditional | Required when any delivery channel is selected |
+
+### 7.2 Conditional Visibility Rules
+
+| Rule ID | Target Field | Condition | Behavior |
+|---------|-------------|-----------|----------|
+| CV-01 | `delivery_schedule_other` | `delivery_schedule` = `No` | Field becomes visible and required |
+| CV-02 | `app_name` | PUSH channel selected | Field becomes visible and required |
+| CV-03 | `send_to_china_flag` | SMS channel selected | Field becomes visible |
+| CV-04 | `sender` | SMS or EMAIL channel selected | Field becomes visible |
+| CV-05 | `sender_name` | EMAIL channel selected | Field becomes visible |
+| CV-06 | `cost_center_id` | SMS channel selected | Field becomes visible |
+| CV-07 | `encrypt_type` | EMAIL channel selected (PFP path) | Field becomes visible |
+| CV-08 | `traffic_percentage` | SMS, EMAIL, or PUSH channel selected | Field becomes visible |
+| CV-09 | `push_optin_flag` | PUSH channel selected | Field becomes visible |
+| CV-10 | `marketing_optin_flag` | PUSH channel selected AND `app_name` has value | Field becomes visible |
+| CV-11 | `high_risk_push_optin_flag` | PUSH channel selected (DAASC path) | Field becomes visible |
+| CV-12 | `bounce_back` | PUSH channel selected | Field becomes visible |
+| CV-13 | `push_bounce_back_period` | `bounce_back` = `Yes` | Field becomes visible |
+| CV-14 | `sms_bounce_back_period` | SMS channel selected AND `unknown_bounce_back_status` = `Yes` | Field becomes visible |
+| CV-15 | `email_bounce_back_period` | EMAIL channel selected AND `unknown_bounce_back_status` = `Yes` | Field becomes visible |
+| CV-16 | `letter_bounce_back_period` | LETTER channel selected AND `unknown_bounce_back_status` = `Yes` | Field becomes visible |
+| CV-17 | `letter_bounce_back_success_flag` | LETTER channel selected | Field becomes visible |
+
+### 7.3 Business Logic Rules
+
+| Rule ID | Rule Name | Description | Affected Fields |
+|---------|-----------|-------------|-----------------|
+| BR-01 | High-Risk Dual Vendor | If `high_risk_flag` = `Yes`, then `support_dual_vendor` **must** be `Yes` | `high_risk_flag`, `support_dual_vendor` |
+| BR-02 | High-Risk Traffic Split | High-risk real-time messages should use HTCL-100%, CSL-0% for resilience | `traffic_percentage` |
+| BR-03 | OTP Traffic Split | One-time-password messages should use HTCL-70%, CSL-30% for resilience | `traffic_percentage` |
+| BR-04 | Real-time/Batch Traffic | Standard real-time or batch messages should use HTCL-100% | `traffic_percentage` |
+| BR-05 | Bounce Back → Next Channel | If `bounce_back` or `unknown_bounce_back_status` is enabled, `bounce_back_next_channel` should be configured | `bounce_back_next_channel` |
+| BR-06 | Auto Invalid Flag | `auto_bounce_back_flag` controls whether failed delivery automatically marks customer contact as invalid in CUS | `auto_bounce_back_flag` |
+| BR-07 | Regulatory + Service Line | If `service_line` = `Servicing`, `regulatory_requirement` is recommended to be filled | `regulatory_requirement` |
+| BR-08 | PUSH Opt-in Master | If PUSH channel is selected, `push_optin_flag` (master) must be addressed | `push_optin_flag` |
+| BR-09 | Line of Business Edit Lock | `line_of_business` is only editable during campaign creation, not in edit mode | `line_of_business` |
+
+### 7.4 Value Constraint Rules
+
+| Rule ID | Field | Constraint | Description |
+|---------|-------|-----------|-------------|
+| VC-01 | `traffic_percentage` | 0–100 | Must be a valid percentage |
+| VC-02 | `push_bounce_back_period` | Positive integer | Minutes; must be > 0 |
+| VC-03 | `sms_bounce_back_period` | Positive integer | Minutes; must be > 0 |
+| VC-04 | `email_bounce_back_period` | Positive integer | Minutes; must be > 0 |
+| VC-05 | `letter_bounce_back_period` | Positive integer | Minutes; must be > 0 |
+| VC-06 | `cost_center_id` | Numeric string | e.g., `25267613` |
+
+---
+
+## 8. Field Metadata
+
+### 8.1 Provided By Summary
+
+| Provider Role | Fields Count | Typical Fields |
+|--------------|-------------|----------------|
+| Business | 40 | Most fields; primary owner of campaign configuration |
+| Business / IT PM | 2 | `project_name`, `downstream_name` |
+| Business / IT PM / Source System IT | 1 | `source_system` |
+| Business / IT PM / Downstream System IT | 1 | `downstream_name` |
+| Business / MDC IT | 1 | `traffic_percentage` |
+| Business / IT (if any) | 1 | `remarks` |
+
+### 8.2 DB Table Mapping Summary
+
+| Table | Module(s) | Field Count |
+|-------|----------|-------------|
+| `tbl_use_case` | Basic Info (partial), Extension Info (partial), Opt-In Flag, Bounce Back | 16 |
+| `tbl_use_case_ext` | Basic Info (partial), Extension Info (partial) | 19 |
+| `tbl_use_case_channel_rule` | Delivery Channel | 9 |
+| *(no table)* | Extension Info (`delivery_schedule_other`) | 1 |
+
+### 8.3 Complete Field Count by Module
+
+| Module | Required | Required by UI | Conditional | Optional | Total |
+|--------|----------|---------------|-------------|----------|-------|
+| Basic Info | 7 | 0 | 0 | 1 | 8 |
+| Extension Info | 4 | 5 | 0 | 10 | 19 |
+| Delivery Channel | 1 | 0 | 8 | 0 | 9 |
+| Opt-In Flag | 0 | 0 | 0 | 3 | 3 |
+| Bounce Back | 0 | 1 | 0 | 8 | 9 |
+| **Total** | **12** | **6** | **8** | **22** | **48** |
+
+---
+
+## 9. POC Limitations & Future Considerations
+
+### POC Limitations
+
+| Area | Limitation | Impact |
+|------|-----------|--------|
+| **Data Persistence** | POC uses mock data; no real database integration | Field values are not persisted between sessions |
+| **AI Assistant** | Demonstrates feasibility only; limited training data | May not handle all edge cases or complex queries |
+| **Validation** | Basic client-side validation; no server-side enforcement | Business rules are for demonstration purposes |
+| **Integration** | No integration with production MDC, CUS, or other systems | Field values are illustrative only |
+| **User Management** | No authentication or role-based access | All users have full access in POC |
+
+### Future Considerations
+
+| Area | Recommendation |
+|------|---------------|
+| **Production Data Model** | Validate ERD with database team; consider indexing strategy |
+| **AI Training** | Expand training data with real historical campaigns |
+| **Validation Engine** | Implement server-side validation for all business rules |
+| **Integration** | Design APIs for MDC, CUS, and downstream system integration |
+| **Audit Trail** | Add change tracking for compliance requirements |
+| **Multi-language** | Support Traditional Chinese, Simplified Chinese, English |
+
+---
+
+*End of POC BRD — Full Version*
