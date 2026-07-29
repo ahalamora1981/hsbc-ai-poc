@@ -3,12 +3,49 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { CampaignState, ChatMessage, ModuleName, FieldStatus, ReferenceUseCase, Module, FieldDefinition } from '@/types';
 import { fieldDefinitions, moduleOrder, getFieldsByModule, getRequiredFields, getActionableFields, isFieldRelevant } from '@/data/field-definitions';
-import mockUseCases from '@/data/mock-use-cases.json';
-import historicalStats from '@/data/historical-stats.json';
+import { referenceUseCases as fullReferenceUseCases, toDisplayUseCase, flattenUseCaseValues, getUseCaseChannels, heuristicRank } from '@/lib/reference-matching';
 import ChatPanel from '@/components/ChatPanel';
 import FormPanel from '@/components/FormPanel';
 import ModuleSidebar from '@/components/ModuleSidebar';
 import StepperHeader from '@/components/StepperHeader';
+import { orgUsers, deriveFieldsFromUser, lookupUserByName, lookupOwnerHierarchy } from '@/lib/org-directory';
+
+// Statuses that represent an explicit user decision and must never be
+// silently overwritten by ownership auto-population.
+const OWNER_PROTECTED_STATUSES: FieldStatus[] = ['user-input', 'confirmed', 'modified'];
+
+// Merge auto-derived field values into state without clobbering user edits.
+function applyDerivedFields(
+  prev: CampaignState,
+  derived: Record<string, string>,
+  status: FieldStatus = 'ai-prefill'
+): CampaignState {
+  const values = { ...prev.values };
+  const statuses = { ...prev.statuses };
+  const channels = [...prev.channels];
+  for (const [field, value] of Object.entries(derived)) {
+    if (OWNER_PROTECTED_STATUSES.includes(statuses[field])) continue;
+    values[field] = value;
+    statuses[field] = status;
+    if (field === 'channel' && !channels.includes(value)) channels.push(value);
+  }
+  return { ...prev, values, statuses, channels };
+}
+
+// BR-01: high-risk messages must support dual vendor. When high_risk_flag
+// becomes "Yes", ensure support_dual_vendor is "Yes" unless the user has
+// explicitly set it otherwise.
+function enforceHighRiskDualVendor(next: CampaignState): CampaignState {
+  if (String(next.values['high_risk_flag']) !== 'Yes') return next;
+  const dvStatus = next.statuses['support_dual_vendor'];
+  if (String(next.values['support_dual_vendor']) === 'Yes') return next;
+  if (OWNER_PROTECTED_STATUSES.includes(dvStatus)) return next;
+  return {
+    ...next,
+    values: { ...next.values, support_dual_vendor: 'Yes' },
+    statuses: { ...next.statuses, support_dual_vendor: 'ai-prefill' },
+  };
+}
 
 const initialState: CampaignState = {
   modules: moduleOrder.map(name => ({
@@ -62,6 +99,81 @@ export default function Home() {
     return `msg-${Date.now()}-${messageCounter.current}`;
   }, []);
 
+  // Tracks whether the initial reference-matching pass has run.
+  const hasMatchedRef = useRef(false);
+
+  // AI-driven reference matching against the CSV-derived use cases.
+  // Calls /api/match (LLM scoring); falls back to a local heuristic on failure.
+  const runReferenceMatching = useCallback(async (requirement: string) => {
+    setMessages(prev => [...prev, {
+      id: generateMessageId(),
+      role: 'assistant',
+      content: '🔍 正在分析您的 requirement...\n• 提取業務信號\n• 搜索匹配的歷史 use case',
+      timestamp: new Date(),
+      type: 'processing',
+    }]);
+
+    let scored: Array<{ use_case_id: string; score: number }> = [];
+    try {
+      const res = await fetch('/api/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requirement }),
+      });
+      const data = await res.json();
+      if (Array.isArray(data.matches) && data.matches.length > 0) {
+        scored = data.matches;
+      }
+    } catch (error) {
+      console.error('Match request failed, using heuristic fallback:', error);
+    }
+
+    // Fallback to deterministic heuristic ranking when the LLM is unavailable.
+    if (scored.length === 0) {
+      scored = heuristicRank(requirement);
+    }
+
+    // Keep the top 3 with a positive score.
+    const top = scored
+      .filter(s => s.score > 0)
+      .slice(0, 3);
+
+    const matches: ReferenceUseCase[] = top
+      .map((s, i) => {
+        const full = fullReferenceUseCases.find(uc => uc.use_case_id === s.use_case_id);
+        if (!full) return null;
+        return toDisplayUseCase(full, Math.round(s.score), i === 0);
+      })
+      .filter((m): m is ReferenceUseCase => m !== null);
+
+    if (matches.length === 0) {
+      setMessages(prev => [...prev, {
+        id: generateMessageId(),
+        role: 'assistant',
+        content: '我沒有找到高度匹配的歷史 Use Case。我們可以從頭開始配置——請告訴我您需要的 delivery channels（SMS、EMAIL、PUSH、LETTER）。',
+        timestamp: new Date(),
+        type: 'text',
+      }]);
+      setShowReferences(false);
+      return;
+    }
+
+    setReferenceUseCases(matches);
+    setShowReferences(true);
+
+    const matchText = matches.map(m =>
+      `• **${m.name}** (${m.similarity}% 匹配)\n  ${m.description}\n  Channels: ${m.channels.join(', ')}`
+    ).join('\n\n');
+
+    setMessages(prev => [...prev, {
+      id: generateMessageId(),
+      role: 'assistant',
+      content: `✅ 需求已理解！找到 ${matches.length} 個相關的歷史 Use Case：\n\n${matchText}\n\n請選擇一個作為參考，或點擊「開始新 Use Case」從頭開始。`,
+      timestamp: new Date(),
+      type: 'text',
+    }]);
+  }, [generateMessageId]);
+
   const handleSendMessage = useCallback(async (content: string) => {
     const userMessage: ChatMessage = {
       id: generateMessageId(),
@@ -72,7 +184,7 @@ export default function Home() {
     };
 
     setMessages(prev => [...prev, userMessage]);
-    
+
     // Auto-detect channels from user message
     const channelKeywords: Record<string, string[]> = {
       'PUSH': ['push', '推播', '推送通知'],
@@ -80,16 +192,16 @@ export default function Home() {
       'EMAIL': ['email', '電郵', '郵件'],
       'LETTER': ['letter', '信件', '信函'],
     };
-    
+
     const lowerContent = content.toLowerCase();
     const detectedChannels: string[] = [];
-    
+
     for (const [channel, keywords] of Object.entries(channelKeywords)) {
       if (keywords.some(kw => lowerContent.includes(kw))) {
         detectedChannels.push(channel);
       }
     }
-    
+
     // Update channels if new ones detected
     if (detectedChannels.length > 0) {
       setFormState(prev => {
@@ -100,7 +212,20 @@ export default function Home() {
         return prev;
       });
     }
-    
+
+    // The first user requirement triggers AI-driven reference matching
+    // instead of the field-filling chat flow.
+    if (!hasMatchedRef.current) {
+      hasMatchedRef.current = true;
+      setIsLoading(true);
+      try {
+        await runReferenceMatching(content);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -157,7 +282,7 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
-  }, [messages, formState]);
+  }, [messages, formState, runReferenceMatching, generateMessageId]);
 
   const handleFunctionCall = useCallback((functionCall: { name: string; arguments: Record<string, unknown> }) => {
     const { name, arguments: args } = functionCall;
@@ -182,14 +307,23 @@ export default function Home() {
   }, [formState]);
 
   const handleFieldUpdate = useCallback((fieldName: string, value: string, source: FieldStatus) => {
-    setFormState(prev => ({
-      ...prev,
-      values: { ...prev.values, [fieldName]: value },
-      statuses: { ...prev.statuses, [fieldName]: source },
-      channels: fieldName === 'channel' 
-        ? [...new Set([...prev.channels, value])]
-        : prev.channels,
-    }));
+    setFormState(prev => {
+      let next: CampaignState = {
+        ...prev,
+        values: { ...prev.values, [fieldName]: value },
+        statuses: { ...prev.statuses, [fieldName]: source },
+        channels: fieldName === 'channel'
+          ? [...new Set([...prev.channels, value])]
+          : prev.channels,
+      };
+      // Auto-populate ownership hierarchy when the message owner is set.
+      if (fieldName === 'message_owner') {
+        next = applyDerivedFields(next, lookupOwnerHierarchy(value));
+      }
+      // BR-01: enforce dual vendor for high-risk messages.
+      next = enforceHighRiskDualVendor(next);
+      return next;
+    });
   }, []);
 
   const handleBatchUpdate = useCallback((fields: Array<{ field_name: string; value: string; source: FieldStatus }>) => {
@@ -206,14 +340,52 @@ export default function Home() {
         }
       }
 
-      return {
+      let next: CampaignState = {
         ...prev,
         values: newValues,
         statuses: newStatuses,
         channels: newChannels,
       };
+
+      // Auto-populate ownership hierarchy if the message owner was set in this batch.
+      const ownerField = fields.find(f => f.field_name === 'message_owner');
+      if (ownerField) {
+        next = applyDerivedFields(next, lookupOwnerHierarchy(ownerField.value));
+      }
+      // BR-01: enforce dual vendor for high-risk messages.
+      next = enforceHighRiskDualVendor(next);
+
+      return next;
     });
   }, []);
+
+  // Quick-fill the whole ownership block from the org directory dropdown.
+  const handleSelectUser = useCallback((userName: string) => {
+    const user = lookupUserByName(userName);
+    if (!user) return;
+    const derived = deriveFieldsFromUser(user);
+
+    setFormState(prev => applyDerivedFields(
+      {
+        ...prev,
+        values: { ...prev.values, message_owner: derived.message_owner },
+        statuses: { ...prev.statuses, message_owner: 'user-input' },
+      },
+      derived,
+    ));
+
+    const filledList = Object.entries(derived)
+      .map(([k, v]) => `• ${k}: ${v}`)
+      .join('\n');
+
+    setMessages(prev => [...prev, {
+      id: generateMessageId(),
+      role: 'assistant',
+      content: `✅ 已根據 ${user.name}（${user.grade}${user.title ? ', ' + user.title : ''}）自動填充擁有者資訊：\n\n${filledList}\n\n您可以隨時修改這些欄位。`,
+      timestamp: new Date(),
+      type: 'text',
+    }]);
+  }, [generateMessageId]);
 
   const handleSetMatchScore = useCallback((useCaseId: string, score: number) => {
     setReferenceUseCases(prev => 
@@ -337,11 +509,24 @@ Please guide me on what fields I need to fill. Note:
   }, [formState, generateMessageId, detectUserLanguage]);
 
   const handleSelectReference = useCallback((useCaseId: string) => {
-    const useCase = mockUseCases.find(uc => uc.id === useCaseId);
+    const useCase = fullReferenceUseCases.find(uc => uc.use_case_id === useCaseId);
     if (!useCase) return;
 
-    // Pre-fill fields from reference
-    const updates = Object.entries(useCase.values).map(([key, value]) => ({
+    const displayName = String(useCase.values.use_case_name ?? useCase.use_case_id);
+    const ucChannels = getUseCaseChannels(useCase);
+
+    // Activate the reference use case's delivery channels so channel-driven
+    // fields become visible/actionable.
+    if (ucChannels.length > 0) {
+      setFormState(prev => ({
+        ...prev,
+        channels: [...new Set([...prev.channels, ...ucChannels])],
+      }));
+    }
+
+    // Pre-fill the full field set (base values + channel-rule fields) from the reference.
+    const flat = flattenUseCaseValues(useCase);
+    const updates = Object.entries(flat).map(([key, value]) => ({
       field_name: key,
       value: String(value),
       source: 'reference-prefill' as FieldStatus,
@@ -349,10 +534,13 @@ Please guide me on what fields I need to fill. Note:
 
     handleBatchUpdate(updates);
 
+    const preview = updates.slice(0, 12);
+    const extra = updates.length - preview.length;
+
     setMessages(prev => [...prev, {
       id: generateMessageId(),
       role: 'assistant',
-      content: `✅ 已套用參考 Use Case: ${useCase.name}\n\n已預填充以下欄位：\n${updates.map(u => `• ${u.field_name}: ${u.value}`).join('\n')}\n\n請確認或修改這些值，我會繼續引導您完成其他欄位。`,
+      content: `✅ 已套用參考 Use Case: ${displayName}\n\nChannels: ${ucChannels.join(', ') || '—'}\n\n已預填充 ${updates.length} 個欄位：\n${preview.map(u => `• ${u.field_name}: ${u.value}`).join('\n')}${extra > 0 ? `\n…以及其他 ${extra} 個欄位` : ''}\n\n請確認或修改這些值，我會繼續引導您完成其他欄位。`,
       timestamp: new Date(),
       type: 'text',
     }]);
@@ -384,51 +572,13 @@ Please guide me on what fields I need to fill. Note:
 
   const handleUseSample = useCallback(() => {
     const sampleMessages = [
-      "我需要為 FPS 轉賬成功通知設置 Push 和 SMS，市場是 HK",
-      "要發送信用卡交易通知，high risk，需要 dual channel",
-      "設置 eStatement 通知，用 Email 和 Letter",
+      "信用卡 CNP 高風險交易警示，需要 SMS 和 PUSH，市場 HK",
+      "網上銀行 OTP 驗證碼，SMS 和 PUSH，high risk，需要 dual vendor",
+      "企業大額付款審批提示，SMS 加 EMAIL，Commercial Banking",
     ];
     const sample = sampleMessages[Math.floor(Math.random() * sampleMessages.length)];
     handleSendMessage(sample);
   }, [handleSendMessage]);
-
-  // Simulate initial matching when user first sends a requirement
-  const handleFirstRequirement = useCallback(async (requirement: string) => {
-    // Show processing message
-    setMessages(prev => [...prev, {
-      id: generateMessageId(),
-      role: 'assistant',
-      content: '🔍 正在分析您的 requirement...\n• 提取業務信號\n• 搜索匹配的歷史 use case',
-      timestamp: new Date(),
-      type: 'processing',
-    }]);
-
-    // Simulate matching (in real app, this would call the LLM)
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // Create mock matches
-    const matches: ReferenceUseCase[] = mockUseCases.slice(0, 3).map((uc, i) => ({
-      ...uc,
-      similarity: i === 0 ? 92 : i === 1 ? 78 : 65,
-      isBestMatch: i === 0,
-    }));
-
-    setReferenceUseCases(matches);
-    setShowReferences(true);
-
-    // Show matches in chat
-    const matchText = matches.map(m => 
-      `• **${m.name}** (${m.similarity}% 匹配)\n  ${m.description}\n  Channels: ${m.channels.join(', ')}`
-    ).join('\n\n');
-
-    setMessages(prev => [...prev, {
-      id: generateMessageId(),
-      role: 'assistant',
-      content: `✅ 需求已理解！找到 ${matches.length} 個相關的歷史 Use Case：\n\n${matchText}\n\n請選擇一個作為參考，或點擊「開始新 Use Case」從頭開始。`,
-      timestamp: new Date(),
-      type: 'text',
-    }]);
-  }, [generateMessageId]);
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -456,6 +606,8 @@ Please guide me on what fields I need to fill. Note:
             onSelectReference={handleSelectReference}
             onStartFresh={handleStartFresh}
             onViewReferences={() => setShowReferences(true)}
+            orgUsers={orgUsers}
+            onSelectUser={handleSelectUser}
             scrollToModule={scrollToModule}
             onScrollComplete={() => setScrollToModule(null)}
           />
@@ -478,7 +630,7 @@ Please guide me on what fields I need to fill. Note:
           const nextModule = moduleOrder[currentIndex + 1];
           if (!nextModule) return false;
           // Use getActionableFields to check both Required and relevant Conditional fields
-          const actionableFields = getActionableFields(formState.currentModule, formState.channels);
+          const actionableFields = getActionableFields(formState.currentModule, formState.channels, formState.values);
           return actionableFields.every(f => 
             formState.values[f.name] && formState.statuses[f.name] !== 'empty'
           );

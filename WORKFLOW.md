@@ -8,27 +8,26 @@ This document describes the complete workflow for using the Campaign AI Assistan
 
 ## Workflow Description
 
-### Step 1: Welcome & Initial Options
+### Step 1: Welcome & Requirement Intake
 
-When the user opens the application, the AI assistant presents:
-- A welcome message explaining its capabilities
-- A list of **Reference Use Cases** (historical campaigns with similarity scores)
+When the user opens the application, the AI assistant presents a welcome message
+explaining its capabilities and prompts the user to describe their campaign requirement.
+
+### Step 2: AI Reference Matching & Field Extraction
+
+The user describes their campaign requirement, for example:
+> "信用卡 CNP 高風險交易警示，需要 SMS 和 PUSH，市場 HK"
+
+On the **first** requirement message the app:
+1. **Calls `/api/match`** — the LLM scores every historical use case (UC-001..005) 0–100
+   against the requirement. If the LLM is unavailable, a deterministic heuristic ranks by
+   channel/keyword overlap.
+2. **Renders the top matches** as selectable **Reference Use Case** cards (with % scores).
 
 The user can either:
-1. **Select a reference use case** → Pre-fills matching fields automatically
-2. **Start fresh** → Describe the campaign requirement in natural language
-
-### Step 2: Campaign Description & Field Extraction
-
-If starting fresh, the user describes their campaign requirement, for example:
-> "I need to set up Push and SMS notifications for FPS transfer success in HK market with HASE entity"
-
-The AI then:
-1. **Extracts key information** from the description
-2. **Detects channels** mentioned (Push, SMS, Email, Letter)
-3. **Auto-fills Basic Info fields** (use case name, entity, market, LOB, etc.)
-4. **Activates channel-dependent fields** in other modules
-5. **Lists filled fields** and asks about remaining ones
+1. **Select a reference use case** → pre-fills the full field set (base values + channel-rule
+   fields) and activates the use case's delivery channels
+2. **Start fresh** → continue describing; the AI detects channels and extracts field values
 
 ### Step 3: Guided Field Completion (Basic Info)
 
@@ -45,13 +44,14 @@ When all **required fields** in Basic Info are filled:
 - User clicks to advance to **Extension Info**
 - OR the AI can call `advance_module` to switch automatically
 
-### Step 5: Extension Info Module
+### Step 5: Extension Info Module (Ownership Auto-Populate)
 
-Repeat the guided process for Extension Info:
-- Ownership, business hierarchy
-- Schedule and timing
-- Risk category and triggering conditions
-- AI asks about each unfilled field
+Extension Info captures ownership, hierarchy, schedule, risk and triggering conditions.
+Ownership is **auto-populated** from the organizational directory (`users.csv`):
+- The user picks a **Message Owner** from the dropdown (or names them in chat)
+- The system fills entity, market, line of business, service line, department/team head,
+  business lines, business team/contact and cost owner — without overwriting user edits
+- **BR-01** is enforced here: if `high_risk_flag = Yes`, `support_dual_vendor` is set to `Yes`
 
 ### Step 6: Delivery Channel Module
 
@@ -102,9 +102,26 @@ When all modules are complete:
 | State | Description |
 |-------|-------------|
 | Empty | No value entered |
+| AI Prefill | Auto-populated by the assistant (e.g. ownership hierarchy) |
+| Reference Prefill | Filled from a selected historical use case |
 | Filled | Value entered by AI or user |
 | Confirmed | User confirmed the value |
 | Modified | User changed a confirmed value |
+
+---
+
+## Business Rules & Validation
+
+The app enforces the BRD §7 rules (see `lib/validation.ts`):
+
+- **Value constraints (VC-01..06)** validate inline in each field row:
+  `traffic_percentage` 0–100; `*_bounce_back_period` positive integer minutes;
+  `cost_center_id` numeric string.
+- **Business rules (BR-01..09)** surface as advisories in the form panel:
+  - **BR-01** high-risk → dual vendor (auto-enforced)
+  - **BR-02/03/04** traffic-split guidance (high-risk / OTP / standard)
+  - **BR-05** bounce-back next channel; **BR-07** regulatory for Servicing;
+    **BR-08** PUSH opt-in; **BR-09** line-of-business editable in create only
 
 ---
 

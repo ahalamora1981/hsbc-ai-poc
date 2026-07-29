@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { CampaignState, ReferenceUseCase, FieldStatus, FieldDefinition, ModuleName, Module } from '@/types';
+import { CampaignState, ReferenceUseCase, FieldStatus, FieldDefinition, ModuleName, Module, OrgUser } from '@/types';
 import { isFieldRelevant } from '@/data/field-definitions';
+import { evaluateBusinessRules, RuleSeverity } from '@/lib/validation';
 import ReferenceCards from './ReferenceCards';
 import FieldRow from './FieldRow';
 import ChannelMatrix from './ChannelMatrix';
@@ -16,6 +17,8 @@ interface FormPanelProps {
   onSelectReference: (useCaseId: string) => void;
   onStartFresh: () => void;
   onViewReferences: () => void;
+  orgUsers?: OrgUser[];
+  onSelectUser?: (userName: string) => void;
   scrollToModule?: ModuleName | null;
   onScrollComplete?: () => void;
 }
@@ -44,6 +47,8 @@ export default function FormPanel({
   onSelectReference,
   onStartFresh,
   onViewReferences,
+  orgUsers,
+  onSelectUser,
   scrollToModule,
   onScrollComplete,
 }: FormPanelProps) {
@@ -126,6 +131,54 @@ export default function FormPanel({
           </button>
         </div>
       )}
+
+      {/* Quick-fill ownership from org directory (users.csv) */}
+      {orgUsers && orgUsers.length > 0 && onSelectUser && (
+        <div className="mb-6 p-4 rounded-lg border border-indigo-200 bg-indigo-50">
+          <label htmlFor="owner-select" className="block text-sm font-semibold text-indigo-900 mb-1">
+            Quick fill by Message Owner
+          </label>
+          <p className="text-xs text-indigo-600 mb-2">
+            Select a person to auto-populate entity, market, line of business, service line
+            and the full ownership hierarchy (department/team head, business lines, cost owner).
+          </p>
+          <select
+            id="owner-select"
+            value={typeof formState.values['message_owner'] === 'string' ? (formState.values['message_owner'] as string) : ''}
+            onChange={(e) => e.target.value && onSelectUser(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-indigo-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          >
+            <option value="">— Select a message owner —</option>
+            {orgUsers.map(u => (
+              <option key={u.name} value={u.name}>
+                {u.name} · {u.grade}{u.title ? ` · ${u.title}` : ''} · {u.lineOfBusiness}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Business rule advisories (BRD §7.3) */}
+      {(() => {
+        const findings = evaluateBusinessRules(formState.values, formState.channels);
+        if (findings.length === 0) return null;
+        const styleFor: Record<RuleSeverity, string> = {
+          error: 'border-red-200 bg-red-50 text-red-800',
+          warning: 'border-amber-200 bg-amber-50 text-amber-800',
+          info: 'border-blue-200 bg-blue-50 text-blue-800',
+        };
+        const iconFor: Record<RuleSeverity, string> = { error: '⛔', warning: '⚠', info: 'ℹ' };
+        return (
+          <div className="mb-6 space-y-2">
+            {findings.map(f => (
+              <div key={f.id + f.field} className={`flex items-start gap-2 p-3 rounded-lg border text-xs ${styleFor[f.severity]}`}>
+                <span aria-hidden>{iconFor[f.severity]}</span>
+                <span><span className="font-semibold">{f.id}</span> · {f.message}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* All Modules in Order */}
       {formState.modules.map(module => {

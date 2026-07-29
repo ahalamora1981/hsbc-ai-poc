@@ -1,9 +1,9 @@
 {
   "samples": [
-    "我需要為 FPS 轉賬成功通知設置 Push 和 SMS 通知，市場是 HK，Entity 是 HASE",
-    "要發送信用卡交易通知，high risk，需要 dual channel（SMS 和 EMAIL）",
-    "設置 eStatement 通知，用 Email 和 Letter，每月發送",
-    "ATM 提款通知，realtime push，需要 bounce back 到 SMS",
-    "Payment notification for FPS inward direct debit, non HKD/RMB, WPB line"
+    "信用卡 CNP 高風險交易警示，需要 SMS 和 PUSH，市場 HK，Entity HASE",
+    "每月電子月結單通知 (eStatement)，用 EMAIL 和 LETTER，Retail Banking",
+    "信用卡新戶迎新推廣，發 PUSH 和 EMAIL marketing 訊息",
+    "網上銀行 OTP 驗證碼，SMS 和 PUSH，high risk，需要 dual vendor",
+    "企業大額付款審批提示 (Commercial Banking)，SMS 加 EMAIL，high risk"
   ]
 }

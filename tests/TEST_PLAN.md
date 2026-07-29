@@ -90,27 +90,32 @@ Automated UI testing using Playwright CLI to verify the Campaign AI Assistant PO
 
 ---
 
-### TC07: Statistics Accuracy
+### TC07: Field Statistics
 **Objective:** Verify sidebar statistics are accurate
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
 | 7.1 | Count all fields in form | Should total 48 |
-| 7.2 | Fill 3 Required fields | Required Filled=3, Not Filled=9 |
-| 7.3 | Fill 2 Optional fields | Optional Filled=2, Not Filled=20 |
-| 7.4 | Verify Total | Total Filled=5, Total Not Filled=43 |
-| 7.5 | Verify sum | Required(12) + Conditional(14) + Optional(22) = 48 |
+| 7.2 | Fill 3 Required fields | Required Filled count increases by 3 |
+| 7.3 | Fill 2 Optional fields | Optional Filled count increases by 2 |
+| 7.4 | Verify Total | Total Filled + Total Not Filled = 48 |
+| 7.5 | Note requirement levels | Required, Required by UI, Conditional and Optional are tracked; Conditional counts depend on selected channels/values |
 
 ---
 
-### TC08: Reference Use Cases
-**Objective:** Verify reference use case matching works
+### TC08: AI Reference Matching
+**Objective:** Verify the first requirement is matched against the historical use-case catalogue via `/api/match`
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
-| 8.1 | Type: "我想建立一個OTP驗證碼的推廣" | AI matches to OTP use case |
-| 8.2 | Verify reference cards | Shows matching use cases with scores |
-| 8.3 | Verify auto-fill | Reference fields pre-fill form |
+| 8.1 | Send: "信用卡 CNP 高風險交易警示 SMS PUSH HK" | Top match UC-001 (CNP Transaction Alert), high score |
+| 8.2 | Send: "每月電子月結單 eStatement EMAIL LETTER" | Top match UC-002 (Monthly eStatement Notification) |
+| 8.3 | Send: "信用卡新戶迎新推廣 PUSH EMAIL marketing" | Top match UC-003 (Credit Card Welcome Promotion) |
+| 8.4 | Send: "網上銀行 OTP 驗證碼 SMS PUSH high risk" | Top match UC-004 (Online Banking OTP Verification) |
+| 8.5 | Send: "企業大額付款審批提示 Commercial Banking SMS EMAIL" | Top match UC-005 (Corporate Large Value Payment Alert) |
+| 8.6 | Verify reference cards | Top 3 matches shown with % scores; best match highlighted |
+| 8.7 | Select a reference card | Full field set pre-fills (base + channel-rule values); channels activated |
+| 8.8 | LLM unavailable (bad API key) | Falls back to heuristic ranking; cards still render |
 
 ---
 
@@ -226,22 +231,52 @@ Automated UI testing using Playwright CLI to verify the Campaign AI Assistant PO
 
 ---
 
+### TC18: Ownership Auto-Populate
+**Objective:** Verify ownership hierarchy auto-fills from the org directory (`users.csv`)
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 18.1 | Open the "Quick fill by Message Owner" dropdown | Lists 14 users with grade/title/LOB |
+| 18.2 | Select "Eric Chan" | Auto-fills group_member, country_code, line_of_business (RB), service_line, depart_head, team_head, business lines, business_team, business_contact, cost_owner |
+| 18.3 | Verify message_owner | Set to "Eric Chan" (status user-input) |
+| 18.4 | Edit an auto-filled field, then reselect | User-edited field (status modified/user-input) is NOT overwritten |
+| 18.5 | Select a "Corporate" C-suite user (e.g. Michael Wong) | line_of_business is left blank (not a valid WPB/RB/CMB enum) |
+
+---
+
+### TC19: Business Rules & Validation
+**Objective:** Verify BRD §7 value constraints and business rules
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 19.1 | Set traffic_percentage = 150 | Inline error "Must be between 0 and 100" |
+| 19.2 | Set sms_bounce_back_period = -5 | Inline error "Must be a positive whole number of minutes" |
+| 19.3 | Set cost_center_id = "abc" | Inline error "Must be a numeric string" |
+| 19.4 | Set high_risk_flag = Yes | BR-01 advisory + support_dual_vendor auto-set to Yes |
+| 19.5 | Select PUSH channel, leave push_optin_flag empty | BR-08 advisory shown |
+| 19.6 | Set service_line = Servicing, leave regulatory_requirement empty | BR-07 advisory shown |
+| 19.7 | Enable bounce_back, leave bounce_back_next_channel empty | BR-05 advisory shown |
+
+---
+
 ## Test Execution Order
 1. TC01 - Page Load (prerequisite for all)
 2. TC02 - Module Navigation
 3. TC03 - Basic Field Extraction
 4. TC06 - Field States
-5. TC07 - Statistics
+5. TC07 - Field Statistics
 6. TC05 - Bilingual
 7. TC04 - Module Progression
-8. TC08 - Reference Use Cases
-9. TC09 - Channel Matrix
-10. TC10 - Help Tooltips
-11. TC11 - Sample Messages
-12. TC12 - Loading States
-13. TC13 - Chat Scroll
-14. TC14 - Responsive Layout
-15. TC15 - Error Handling
+8. TC08 - AI Reference Matching
+9. TC18 - Ownership Auto-Populate
+10. TC19 - Business Rules & Validation
+11. TC09 - Channel Matrix
+12. TC10 - Help Tooltips
+13. TC11 - Sample Messages
+14. TC12 - Loading States
+15. TC13 - Chat Scroll
+16. TC14 - Responsive Layout
+17. TC17 - Error Handling
 
 ---
 
@@ -251,7 +286,8 @@ Automated UI testing using Playwright CLI to verify the Campaign AI Assistant PO
 
 ## Test Data
 - Use sample messages from `data/sample-messages.json`
-- Use mock use cases from `data/mock-use-cases.json`
+- Reference use cases are generated from `docs/*.csv` into `data/reference/` (run `npm run gen:data`)
+- API routes: `/api/match` (AI matching) and `/api/chat` (guided field-filling)
 
 ## Notes
 - Take screenshots at key verification points

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { FieldDefinition, FieldStatus } from '@/types';
+import { validateValue } from '@/lib/validation';
 
 interface FieldRowProps {
   field: FieldDefinition;
@@ -15,6 +16,11 @@ export default function FieldRow({ field, value, status, onEdit, onConfirm }: Fi
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value || '');
   const [showTooltip, setShowTooltip] = useState(false);
+
+  // VC-01..06: current committed value validation (shown as inline error).
+  const valueError = validateValue(field.name, value);
+  // Live validation of the in-progress edit value.
+  const editError = isEditing ? validateValue(field.name, editValue) : null;
 
   const handleSave = () => {
     onEdit(field.name, editValue);
@@ -106,30 +112,40 @@ export default function FieldRow({ field, value, status, onEdit, onConfirm }: Fi
       {/* Value */}
       <div className="col-span-4">
         {isEditing ? (
-          <div className="flex gap-2">
-            {renderInput()}
-            <button
-              onClick={handleSave}
-              className="px-3 py-1 text-xs text-white bg-blue-600 rounded hover:bg-blue-700"
-            >
-              Save
-            </button>
-            <button
-              onClick={handleCancel}
-              className="px-3 py-1 text-xs text-gray-600 bg-gray-200 rounded hover:bg-gray-300"
-            >
-              Cancel
-            </button>
+          <div>
+            <div className="flex gap-2">
+              {renderInput()}
+              <button
+                onClick={handleSave}
+                className="px-3 py-1 text-xs text-white bg-blue-600 rounded hover:bg-blue-700"
+              >
+                Save
+              </button>
+              <button
+                onClick={handleCancel}
+                className="px-3 py-1 text-xs text-gray-600 bg-gray-200 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+            {editError && (
+              <div className="mt-1 text-[11px] text-red-600">{editError}</div>
+            )}
           </div>
         ) : (
-          <div
-            onClick={() => setIsEditing(true)}
-            className="cursor-pointer text-sm"
-          >
-            {value ? (
-              <span className="text-gray-900">{value}</span>
-            ) : (
-              <span className="text-gray-400">Add value</span>
+          <div>
+            <div
+              onClick={() => setIsEditing(true)}
+              className="cursor-pointer text-sm"
+            >
+              {value ? (
+                <span className={valueError ? 'text-red-700' : 'text-gray-900'}>{value}</span>
+              ) : (
+                <span className="text-gray-400">Add value</span>
+              )}
+            </div>
+            {valueError && (
+              <div className="mt-1 text-[11px] text-red-600">⚠ {valueError}</div>
             )}
           </div>
         )}

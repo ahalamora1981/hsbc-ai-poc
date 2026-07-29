@@ -7,4 +7,5 @@ UC-003,PUSH,High,HASE_Mobile,,DAASC-100%,,,,
 UC-003,EMAIL,Medium,,,HTCL-100%,hangseng@mail.info.hangseng.com,恒生銀行信用卡 Hang Seng Bank Credit Card,,TLS
 UC-004,SMS,High,,No,"HTCL-70%, CSL-30%",HASE,,25267614,
 UC-004,PUSH,Medium,HASE_Mobile_DAASC,,DAASC-100%,,,,
-UC-005,EMAIL,High,,,HTCL-100%,itsm-alert@mail.internal.hangseng.com,HASE IT Monitoring,,TLS
+UC-005,SMS,High,,No,"HTCL-100%, CSL-0%",HASE,,25267615,
+UC-005,EMAIL,Medium,,,HTCL-100%,commercial@mail.info.hangseng.com,恒生商業銀行 Hang Seng Commercial Banking,,TLS

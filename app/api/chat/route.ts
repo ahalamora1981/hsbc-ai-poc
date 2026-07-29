@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { chatCompletion, LLMMessage } from '@/lib/llm';
 import { campaignFunctions } from '@/lib/functions';
+import { getActionableFields } from '@/data/field-definitions';
 import { CampaignState, ChatMessage } from '@/types';
 
 export async function POST(request: NextRequest) {
@@ -262,14 +263,11 @@ function buildSystemPrompt(formState: CampaignState): string {
   const channels = formState.channels.join(', ') || 'None selected';
 
   const currentModule = formState.modules.find(m => m.name === formState.currentModule);
-  // Get actionable fields: Required + Conditional fields relevant to selected channels
-  const actionableFields = currentModule?.fields.filter(f => {
-    if (f.required === 'Required') return true;
-    if (f.required === 'Conditional' && f.dependsOn) {
-      return formState.channels.some(ch => f.dependsOn?.includes(ch));
-    }
-    return false;
-  }) || [];
+  // Get actionable fields: Required + Required by UI + relevant Conditional fields
+  // (using the shared token-aware dependency evaluation).
+  const actionableFields = currentModule
+    ? getActionableFields(formState.currentModule, formState.channels, formState.values)
+    : [];
   
   const missingFields = actionableFields
     .filter(f => !formState.values[f.name])
@@ -284,7 +282,7 @@ function buildSystemPrompt(formState: CampaignState): string {
 - Filled fields:
 ${filledFields}
 
-## Missing Actionable Fields in Current Module (Required + Channel-Conditional)
+## Missing Actionable Fields in Current Module (Required + Required by UI + relevant Conditional)
 ${missingFields}
 
 ## Rules
@@ -362,10 +360,24 @@ When you have fields to fill:
 - country_code: INHK (HK/MO) or HASE (HK only)
 - line_of_business: WPB, RB, CMB
 - service_line: Servicing or Marketing
-- delivery_mode: REALTIME or BATCH
-- delivery_schedule: 7x24 or custom schedule
+- delivery_schedule: Yes (7×24) or No (custom schedule)
 - high_risk_flag: Yes or No
 - channel: SMS, EMAIL, PUSH, LETTER
+
+## Ownership Auto-Population
+Ownership fields are derived automatically from the org directory once the
+message_owner is known. Ask "who is the message owner?" rather than asking for
+depart_head, team_head, business lines, business_team, business_contact, cost_owner,
+service_line, line_of_business, group_member or country_code individually — these are
+auto-filled. Only collect them individually if the user wants to override.
+
+## Business Rules to Enforce / Recommend
+- BR-01: if high_risk_flag = Yes, support_dual_vendor MUST be Yes (auto-enforced).
+- BR-02/03/04: traffic split — high-risk → HTCL-100%/CSL-0%; OTP → HTCL-70%/CSL-30%; standard → HTCL-100%.
+- BR-05: if bounce_back / unknown_bounce_back_status = Yes, ask for bounce_back_next_channel.
+- BR-07: if service_line = Servicing, recommend regulatory_requirement.
+- BR-08: if PUSH selected, address push_optin_flag.
+- Value constraints: traffic_percentage 0–100; *_bounce_back_period positive integer minutes; cost_center_id numeric string.
 
 ## Response Format
 - Be concise
